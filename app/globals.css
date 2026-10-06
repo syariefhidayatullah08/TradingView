@@ -1,38 +1,34 @@
 @import "tailwindcss";
 
 @theme inline {
-  --color-base: rgba(255, 238, 246, 0.75);
-  --color-panel: #ffffff;
-  --color-line: rgba(236, 72, 153, 0.18);
-  --color-fg: #4a2c5a;
-  --color-muted: #9a7aa8;
-  --color-up: #10b981;
-  --color-down: #f43f5e;
-  --color-accent: #ec4899;
-  --color-accent-soft: #c084fc;
+  --color-base: rgba(8, 12, 38, 0.55);
+  --color-panel: #0f1533;
+  --color-line: rgba(147, 197, 253, 0.16);
+  --color-fg: #e6ecff;
+  --color-muted: #8ea0c9;
+  --color-up: #34d399;
+  --color-down: #fb7185;
+  --color-accent: #818cf8;
+  --color-accent-soft: #a5b4fc;
   --font-sans: var(--font-geist-sans);
   --font-mono: var(--font-geist-mono);
 }
 
 html {
-  color-scheme: light;
+  color-scheme: dark;
 }
 
 body {
   color: var(--color-fg);
-  background: #ffe4f1;
-  background-image:
-    radial-gradient(700px 400px at 15% 10%, rgba(255, 255, 255, 0.8), transparent 60%),
-    radial-gradient(800px 500px at 90% 20%, rgba(196, 181, 253, 0.55), transparent 60%),
-    radial-gradient(900px 600px at 50% 110%, rgba(167, 243, 208, 0.45), transparent 60%),
-    linear-gradient(180deg, #ffd6ea 0%, #fbe7ff 45%, #e0f2fe 100%);
+  background: #050818;
+  background-image: linear-gradient(180deg, #03051a 0%, #0a1040 45%, #1b1f5c 75%, #2b2a6e 100%);
   background-attachment: fixed;
   overflow-x: hidden;
 }
 
-/* ---------- Kawaii backdrop ---------- */
+/* ---------- Live night sky ---------- */
 
-.kawaii-backdrop {
+.night-backdrop {
   position: fixed;
   inset: 0;
   z-index: -1;
@@ -40,115 +36,155 @@ body {
   pointer-events: none;
 }
 
-.kawaii-cloud {
+.night-canvas {
   position: absolute;
-  left: -260px;
-  width: 240px;
-  height: 96px;
-  filter: drop-shadow(0 6px 10px rgba(236, 72, 153, 0.12));
-  animation-name: cloud-drift;
-  animation-timing-function: linear;
-  animation-iteration-count: infinite;
+  inset: 0;
+  width: 100%;
+  height: 100%;
 }
 
-@keyframes cloud-drift {
+.night-meadow {
+  position: absolute;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  width: 100%;
+  height: 34vh;
+  min-height: 180px;
+}
+
+.grass path {
+  fill: none;
+  stroke-linecap: round;
+  transform-box: fill-box;
+  transform-origin: bottom center;
+  animation: sway 4s ease-in-out infinite alternate;
+}
+
+.grass-back path {
+  stroke: #1a2563;
+  stroke-width: 2;
+}
+
+.grass-front path {
+  stroke: #070b24;
+  stroke-width: 2.6;
+  animation-duration: 3.2s;
+}
+
+@keyframes sway {
   from {
-    translate: 0 0;
+    rotate: -6deg;
   }
   to {
-    translate: calc(100vw + 300px) 0;
+    rotate: 7deg;
   }
 }
 
-.sakura {
-  position: absolute;
-  top: -40px;
-  background: linear-gradient(135deg, #ffc2dc, #ff8fbf);
-  border-radius: 150% 0 150% 0;
-  opacity: 0.85;
-  box-shadow: 0 2px 4px rgba(236, 72, 153, 0.2);
-  animation-name: petal-fall, petal-sway;
-  animation-timing-function: linear, ease-in-out;
-  animation-iteration-count: infinite, infinite;
-  animation-direction: normal, alternate;
+.sleeper {
+  filter: drop-shadow(0 0 6px rgba(165, 180, 252, 0.35));
 }
 
-@keyframes petal-fall {
-  from {
-    top: -40px;
-    rotate: 0deg;
-  }
-  to {
-    top: 105vh;
-    rotate: 540deg;
-  }
+.sleeper-hair {
+  fill: #0b1030;
 }
 
-@keyframes petal-sway {
-  from {
-    translate: -30px 0;
-  }
-  to {
-    translate: 40px 0;
-  }
+.sleeper-skin {
+  fill: #141a44;
+  stroke: rgba(196, 210, 255, 0.45);
+  stroke-width: 1.2;
 }
 
-.kawaii-neko {
-  position: absolute;
-  right: 18px;
-  bottom: 8px;
-  width: 150px;
-  height: 150px;
-  opacity: 0.9;
-  animation: neko-bob 3.2s ease-in-out infinite;
-  filter: drop-shadow(0 8px 12px rgba(236, 72, 153, 0.25));
+.sleeper-shirt {
+  fill: #121a4a;
+  stroke: rgba(196, 210, 255, 0.35);
+  stroke-width: 1.2;
 }
 
-@keyframes neko-bob {
+.sleeper-limb,
+.sleeper-leg {
+  fill: none;
+  stroke: #0e1440;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+}
+
+.sleeper-limb {
+  stroke-width: 6;
+}
+
+.sleeper-limb-far {
+  stroke: #0a0f34;
+}
+
+.sleeper-shoe {
+  fill: #1a2160;
+}
+
+.sleeper-leg {
+  stroke-width: 9;
+}
+
+.sleeper-cat {
+  fill: #0b1030;
+  stroke: rgba(196, 210, 255, 0.3);
+  stroke-width: 1;
+}
+
+.sleeper-tail {
+  fill: none;
+  stroke: #0b1030;
+  stroke-width: 4;
+  stroke-linecap: round;
+}
+
+.sleeper > path:first-of-type,
+.sleeper-shirt {
+  animation: breathe 4.5s ease-in-out infinite;
+  transform-box: fill-box;
+  transform-origin: bottom center;
+}
+
+@keyframes breathe {
   0%,
-  100% {
-    translate: 0 0;
-  }
-  50% {
-    translate: 0 -8px;
-  }
-}
-
-.neko-eyes {
-  transform-origin: 100px 92px;
-  animation: blink 5s infinite;
-}
-
-@keyframes blink {
-  0%,
-  92%,
   100% {
     scale: 1 1;
   }
-  95% {
-    scale: 1 0.1;
-  }
-}
-
-.sparkle {
-  transform-box: fill-box;
-  transform-origin: center;
-  animation: twinkle 2.4s ease-in-out infinite;
-}
-
-.sparkle-late {
-  animation-delay: 1.2s;
-}
-
-@keyframes twinkle {
-  0%,
-  100% {
-    opacity: 0.2;
-    scale: 0.6;
-  }
   50% {
+    scale: 1 1.06;
+  }
+}
+
+.firefly {
+  position: absolute;
+  width: 4px;
+  height: 4px;
+  border-radius: 50%;
+  background: #fde68a;
+  box-shadow:
+    0 0 6px 2px rgba(253, 230, 138, 0.8),
+    0 0 14px 4px rgba(250, 204, 21, 0.35);
+  animation-name: float, glow;
+  animation-timing-function: ease-in-out, ease-in-out;
+  animation-iteration-count: infinite, infinite;
+  animation-direction: alternate, alternate;
+}
+
+@keyframes float {
+  from {
+    translate: 0 0;
+  }
+  to {
+    translate: 40px -50px;
+  }
+}
+
+@keyframes glow {
+  from {
+    opacity: 0.1;
+  }
+  to {
     opacity: 1;
-    scale: 1.1;
   }
 }
 
@@ -176,24 +212,26 @@ body {
 
 @layer components {
   .panel {
-    background: rgba(255, 255, 255, 0.82);
+    background: rgba(12, 17, 48, 0.62);
     backdrop-filter: blur(14px) saturate(140%);
     -webkit-backdrop-filter: blur(14px) saturate(140%);
-    border: 2px solid rgba(255, 255, 255, 0.9);
-    border-radius: 20px;
+    border: 1px solid rgba(165, 180, 252, 0.18);
+    border-radius: 16px;
     box-shadow:
-      0 0 0 1px rgba(236, 72, 153, 0.12),
-      0 10px 28px rgba(236, 72, 153, 0.14);
+      0 1px 0 rgba(255, 255, 255, 0.05) inset,
+      0 12px 32px rgba(2, 4, 18, 0.45);
     animation: fade-up 0.45s ease both;
     transition:
-      box-shadow 0.25s ease,
-      transform 0.25s ease;
+      border-color 0.25s ease,
+      box-shadow 0.25s ease;
   }
 
   .panel:hover {
+    border-color: rgba(165, 180, 252, 0.4);
     box-shadow:
-      0 0 0 1px rgba(236, 72, 153, 0.25),
-      0 14px 34px rgba(236, 72, 153, 0.22);
+      0 1px 0 rgba(255, 255, 255, 0.06) inset,
+      0 16px 40px rgba(2, 4, 18, 0.55),
+      0 0 28px rgba(129, 140, 248, 0.15);
   }
 
   .panel-header {
@@ -201,57 +239,58 @@ body {
     align-items: center;
     justify-content: space-between;
     padding: 10px 16px;
-    border-bottom: 1px dashed rgba(236, 72, 153, 0.3);
-    background: linear-gradient(90deg, rgba(255, 214, 234, 0.7), rgba(233, 213, 255, 0.5) 60%, transparent);
-    border-radius: 18px 18px 0 0;
+    border-bottom: 1px solid rgba(165, 180, 252, 0.14);
+    background: linear-gradient(90deg, rgba(129, 140, 248, 0.14), rgba(56, 189, 248, 0.06) 60%, transparent);
+    border-radius: 16px 16px 0 0;
   }
 
   .panel-header h2 {
     font-size: 0.875rem;
-    font-weight: 700;
+    font-weight: 600;
     letter-spacing: 0.01em;
   }
 
   .panel-header h2::before {
-    content: "🌸 ";
+    content: "✦ ";
+    color: #fde68a;
   }
 
-  /* Active tab / primary button: candy gradient with a soft glow. */
+  /* Active tab / primary button: twilight gradient with a soft glow. */
   .btn-active {
     color: #fff;
-    background: linear-gradient(120deg, #f472b6, #c084fc, #60a5fa, #f472b6);
+    background: linear-gradient(120deg, #6366f1, #38bdf8, #a78bfa, #6366f1);
     background-size: 200% 100%;
-    animation: shine 6s linear infinite;
+    animation: shine 7s linear infinite;
     border-radius: 999px;
     box-shadow:
-      0 4px 14px rgba(236, 72, 153, 0.35),
-      0 0 0 1px rgba(255, 255, 255, 0.6) inset;
+      0 4px 16px rgba(99, 102, 241, 0.4),
+      0 0 0 1px rgba(255, 255, 255, 0.12) inset;
     transition:
       transform 0.15s ease,
       box-shadow 0.15s ease;
   }
 
   .btn-active:hover {
-    transform: translateY(-1px) scale(1.02);
+    transform: translateY(-1px);
     box-shadow:
-      0 6px 18px rgba(236, 72, 153, 0.45),
-      0 0 0 1px rgba(255, 255, 255, 0.7) inset;
+      0 6px 20px rgba(99, 102, 241, 0.5),
+      0 0 0 1px rgba(255, 255, 255, 0.16) inset;
   }
 
   /* Animated gradient brand text. */
   .brand {
-    background: linear-gradient(90deg, #ec4899, #a855f7, #3b82f6, #ec4899);
+    background: linear-gradient(90deg, #c7d2fe, #7dd3fc, #fde68a, #c7d2fe);
     background-size: 300% 100%;
     -webkit-background-clip: text;
     background-clip: text;
     color: transparent;
-    animation: shine 8s linear infinite;
+    animation: shine 9s linear infinite;
   }
 
   .brand::after {
-    content: " ✿";
-    color: #f472b6;
-    -webkit-text-fill-color: #f472b6;
+    content: " ☾";
+    color: #fde68a;
+    -webkit-text-fill-color: #fde68a;
   }
 }
 
@@ -271,7 +310,7 @@ a {
 }
 
 ::-webkit-scrollbar-thumb {
-  background: rgba(236, 72, 153, 0.35);
+  background: rgba(129, 140, 248, 0.35);
   border-radius: 999px;
   border: 2px solid transparent;
   background-clip: padding-box;
@@ -281,26 +320,14 @@ a {
   background: transparent;
 }
 
-@media (max-width: 640px) {
-  .kawaii-neko {
-    width: 90px;
-    height: 90px;
-  }
-}
-
 @media (prefers-reduced-motion: reduce) {
-  .kawaii-cloud,
-  .sakura,
-  .kawaii-neko,
-  .neko-eyes,
-  .sparkle,
+  .grass path,
+  .sleeper > path:first-of-type,
+  .sleeper-shirt,
+  .firefly,
   .panel,
   .btn-active,
   .brand {
     animation: none;
-  }
-
-  .sakura {
-    display: none;
   }
 }

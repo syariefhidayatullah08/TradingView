@@ -82,16 +82,16 @@ function MiniChart({
     if (!el) return;
     const chart = createChart(el, {
       autoSize: true,
-      layout: { background: { color: "transparent" }, textColor: "#9a7aa8", fontSize: 11 },
-      grid: { vertLines: { color: "rgba(236,72,153,0.08)" }, horzLines: { color: "rgba(236,72,153,0.08)" } },
-      rightPriceScale: { borderColor: "rgba(236,72,153,0.25)" },
-      timeScale: { borderColor: "rgba(236,72,153,0.25)", timeVisible: true, secondsVisible: false },
+      layout: { background: { color: "transparent" }, textColor: "#8ea0c9", fontSize: 11 },
+      grid: { vertLines: { color: "rgba(147,197,253,0.08)" }, horzLines: { color: "rgba(147,197,253,0.08)" } },
+      rightPriceScale: { borderColor: "rgba(147,197,253,0.22)" },
+      timeScale: { borderColor: "rgba(147,197,253,0.22)", timeVisible: true, secondsVisible: false },
     });
     const series = chart.addSeries(CandlestickSeries, {
-      upColor: "#10b981",
-      downColor: "#f43f5e",
-      wickUpColor: "#10b981",
-      wickDownColor: "#f43f5e",
+      upColor: "#34d399",
+      downColor: "#fb7185",
+      wickUpColor: "#34d399",
+      wickDownColor: "#fb7185",
       borderVisible: false,
     });
     refs.current = { chart, series, markers: createSeriesMarkers(series, []), lastSignalTime: -1, loaded: false };
@@ -123,7 +123,7 @@ function MiniChart({
         time: toTime(candles[sg.index]),
         position: sg.type === "beli" ? "belowBar" : "aboveBar",
         shape: sg.type === "beli" ? "arrowUp" : "arrowDown",
-        color: sg.type === "beli" ? "#10b981" : "#f43f5e",
+        color: sg.type === "beli" ? "#34d399" : "#fb7185",
         text: sg.type === "beli" ? "BELI" : "JUAL",
       }));
       r.markers.setMarkers(markers);

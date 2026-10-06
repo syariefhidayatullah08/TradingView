@@ -21,7 +21,7 @@ import {
 
 const verdictStyle: Record<Verdict, { badge: string; text: string }> = {
   tahan: { badge: "bg-up/15 text-up", text: "TAHAN" },
-  amankan: { badge: "bg-yellow-500/15 text-amber-600", text: "AMANKAN" },
+  amankan: { badge: "bg-yellow-500/15 text-amber-300", text: "AMANKAN" },
   jual: { badge: "bg-down text-white animate-pulse", text: "JUAL" },
 };
 

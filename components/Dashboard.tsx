@@ -28,12 +28,12 @@ const TICKER_CONFIG = {
   showSymbolLogo: true,
   isTransparent: true,
   displayMode: "adaptive",
-  colorTheme: "light",
+  colorTheme: "dark",
   locale: "id",
 };
 
 const CALENDAR_CONFIG = {
-  colorTheme: "light",
+  colorTheme: "dark",
   isTransparent: true,
   width: "100%",
   height: "100%",
@@ -140,14 +140,14 @@ export default function Dashboard({ isOwner = false }: { isOwner?: boolean }) {
               symbol: `BINANCE:${coin.symbol}`,
               interval: timeframe.tv,
               timezone: "Asia/Jakarta",
-              theme: "light",
+              theme: "dark",
               style: "1",
               locale: "id",
               allow_symbol_change: false,
               hide_side_toolbar: false,
               studies: ["STD;RSI", "STD;MACD"],
-              backgroundColor: "#ffffff",
-              gridColor: "rgba(236,72,153,0.08)",
+              backgroundColor: "#0d1330",
+              gridColor: "rgba(147,197,253,0.08)",
               support_host: "https://www.tradingview.com",
             }}
           />
@@ -201,7 +201,7 @@ export default function Dashboard({ isOwner = false }: { isOwner?: boolean }) {
                     showIntervalTabs: true,
                     displayMode: "single",
                     locale: "id",
-                    colorTheme: "light",
+                    colorTheme: "dark",
                   }}
                 />
               </section>

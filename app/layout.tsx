@@ -1,6 +1,7 @@
 import type { Metadata, Viewport } from "next";
 import { ClerkProvider } from "@clerk/nextjs";
-import KawaiiBackdrop from "@/components/KawaiiBackdrop";
+import NightBackdrop from "@/components/NightBackdrop";
+import { dark } from "@clerk/ui/themes";
 import { idID } from "@clerk/localizations";
 import { Geist, Geist_Mono } from "next/font/google";
 import "./globals.css";
@@ -22,7 +23,7 @@ export const metadata: Metadata = {
 };
 
 export const viewport: Viewport = {
-  themeColor: "#fbcfe8",
+  themeColor: "#0b1026",
 };
 
 export default function RootLayout({ children }: LayoutProps<"/">) {
@@ -32,11 +33,12 @@ export default function RootLayout({ children }: LayoutProps<"/">) {
       className={`${geistSans.variable} ${geistMono.variable} h-full antialiased`}
     >
       <body className="min-h-full flex flex-col font-sans">
-        <KawaiiBackdrop />
+        <NightBackdrop />
         <ClerkProvider
           localization={idID}
           appearance={{
-            variables: { colorPrimary: "#ec4899", colorBackground: "#ffffff", borderRadius: "12px" },
+            theme: dark,
+            variables: { colorPrimary: "#818cf8", colorBackground: "#0f1533", borderRadius: "12px" },
           }}
           signInUrl="/sign-in"
           signUpUrl="/sign-up"
