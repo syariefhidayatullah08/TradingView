@@ -1,14 +1,11 @@
 "use client";
 
-import { useEffect, useState } from "react";
-import { fetchCandles } from "@/lib/candles";
 import { DIRECTION } from "@/lib/explanations";
 import Explain from "./Explain";
 import type { Signal } from "@/lib/indicators";
+import { useLiveCandles } from "@/lib/live-candles";
 import { outlook, type Outlook } from "@/lib/outlook";
 import { formatPrice, type Coin } from "@/lib/symbols";
-
-const REFRESH_MS = 60_000;
 
 // `horizon` is how many candles ahead the projected range covers.
 const HORIZONS = [
@@ -18,7 +15,6 @@ const HORIZONS = [
 ] as const;
 
 type Result = { outlook: Outlook | null } | { error: true };
-type State = { symbol: string; results?: Result[] };
 
 const toneClass: Record<Signal, string> = { 1: "text-up", 0: "text-muted", [-1]: "text-down" };
 const toneBg: Record<Signal, string> = { 1: "bg-up", 0: "bg-muted", [-1]: "bg-down" };
@@ -98,30 +94,13 @@ function Card({ label, basis, result }: { label: string; basis: string; result: 
 }
 
 export default function MarketDirection({ coin }: { coin: Coin }) {
-  const [state, setState] = useState<State>({ symbol: "" });
+  const hourly = useLiveCandles(coin.symbol, HORIZONS[0].interval);
+  const daily = useLiveCandles(coin.symbol, HORIZONS[1].interval);
+  const weekly = useLiveCandles(coin.symbol, HORIZONS[2].interval);
+  const results = [hourly, daily, weekly].map((live, i): Result | undefined =>
+    live.candles ? { outlook: outlook(live.candles, HORIZONS[i].horizon) } : live.error ? { error: true } : undefined,
+  );
 
-  useEffect(() => {
-    let cancelled = false;
-    async function load() {
-      const results = await Promise.all(
-        HORIZONS.map(
-          (h): Promise<Result> =>
-            fetchCandles(coin.symbol, h.interval)
-              .then((candles) => ({ outlook: outlook(candles, h.horizon) }))
-              .catch(() => ({ error: true })),
-        ),
-      );
-      if (!cancelled) setState({ symbol: coin.symbol, results });
-    }
-    load();
-    const timer = setInterval(load, REFRESH_MS);
-    return () => {
-      cancelled = true;
-      clearInterval(timer);
-    };
-  }, [coin.symbol]);
-
-  const results = state.symbol === coin.symbol ? state.results : undefined;
 
   return (
     <section className="panel">
@@ -131,7 +110,7 @@ export default function MarketDirection({ coin }: { coin: Coin }) {
       </header>
       <div className="grid gap-2 p-3 md:grid-cols-3">
         {HORIZONS.map((h, i) => (
-          <Card key={h.id} label={h.label} basis={h.basis} result={results?.[i]} />
+          <Card key={h.id} label={h.label} basis={h.basis} result={results[i]} />
         ))}
       </div>
       <div className="px-3 pb-3">

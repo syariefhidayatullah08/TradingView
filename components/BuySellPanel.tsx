@@ -1,26 +1,27 @@
 "use client";
 
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useRef } from "react";
 import {
   CandlestickSeries,
   createChart,
   createSeriesMarkers,
   HistogramSeries,
+  type IChartApi,
+  type ISeriesApi,
+  type ISeriesMarkersPluginApi,
   type SeriesMarker,
+  type Time,
   type UTCTimestamp,
 } from "lightweight-charts";
-import { fetchCandles } from "@/lib/candles";
 import { SIGNALS } from "@/lib/explanations";
 import type { Candle } from "@/lib/indicators";
+import { useLiveCandles } from "@/lib/live-candles";
 import { detectSignals, signalStats, volumeSplit, type SignalStats, type VolumeSplit } from "@/lib/signals";
 import { formatCompact, formatPrice, pricePrecision, type Coin, type Timeframe } from "@/lib/symbols";
 import Explain from "./Explain";
 
-const REFRESH_MS = 30_000;
 const HISTORY = 500;
 const VOLUME_LOOKBACK = 24;
-
-type State = { key: string; candles?: Candle[]; error?: boolean };
 
 function when(time: number): string {
   return new Date(time).toLocaleString("id-ID", { day: "numeric", month: "short", hour: "2-digit", minute: "2-digit" });
@@ -30,12 +31,27 @@ function pct(n: number): string {
   return `${n >= 0 ? "+" : ""}${n.toFixed(2)}%`;
 }
 
-function SignalChart({ candles }: { candles: Candle[] }) {
+type ChartRefs = {
+  chart: IChartApi;
+  price: ISeriesApi<"Candlestick">;
+  buyVolume: ISeriesApi<"Histogram">;
+  sellVolume: ISeriesApi<"Histogram">;
+  markers: ISeriesMarkersPluginApi<Time>;
+  lastSignalTime: number;
+  loaded: boolean;
+};
+
+const offset = new Date().getTimezoneOffset() * 60;
+const toTime = (c: Candle) => (c.time / 1000 - offset) as UTCTimestamp;
+const toBar = (c: Candle) => ({ time: toTime(c), open: c.open, high: c.high, low: c.low, close: c.close });
+
+function SignalChart({ candles, chartKey }: { candles: Candle[]; chartKey: string }) {
   const ref = useRef<HTMLDivElement>(null);
+  const refs = useRef<ChartRefs | null>(null);
 
   useEffect(() => {
     const el = ref.current;
-    if (!el || candles.length === 0) return;
+    if (!el) return;
     const chart = createChart(el, {
       autoSize: true,
       layout: { background: { color: "transparent" }, textColor: "#787b86", fontSize: 11 },
@@ -43,39 +59,63 @@ function SignalChart({ candles }: { candles: Candle[] }) {
       rightPriceScale: { borderColor: "#2a2e39", scaleMargins: { top: 0.05, bottom: 0.3 } },
       timeScale: { borderColor: "#2a2e39", timeVisible: true, secondsVisible: false },
     });
-    const offset = new Date().getTimezoneOffset() * 60;
-    const t = (c: Candle) => (c.time / 1000 - offset) as UTCTimestamp;
-    const precision = pricePrecision(candles[candles.length - 1].close);
-
     const price = chart.addSeries(CandlestickSeries, {
       upColor: "#26a69a",
       downColor: "#ef5350",
       wickUpColor: "#26a69a",
       wickDownColor: "#ef5350",
       borderVisible: false,
-      priceFormat: { type: "price", precision, minMove: 1 / 10 ** precision },
     });
-    price.setData(candles.map((c) => ({ time: t(c), open: c.open, high: c.high, low: c.low, close: c.close })));
-
     // Market-buy volume stacked under market-sell volume at the bottom of the chart.
     const volumeOptions = { priceFormat: { type: "volume" as const }, priceScaleId: "volume" };
     const sellVolume = chart.addSeries(HistogramSeries, { ...volumeOptions, color: "#ef535080" });
     const buyVolume = chart.addSeries(HistogramSeries, { ...volumeOptions, color: "#26a69a" });
     chart.priceScale("volume").applyOptions({ scaleMargins: { top: 0.78, bottom: 0 } });
-    sellVolume.setData(candles.map((c) => ({ time: t(c), value: c.volume })));
-    buyVolume.setData(candles.map((c) => ({ time: t(c), value: c.takerBuyVolume ?? 0 })));
+    refs.current = {
+      chart,
+      price,
+      buyVolume,
+      sellVolume,
+      markers: createSeriesMarkers(price, []),
+      lastSignalTime: -1,
+      loaded: false,
+    };
+    return () => {
+      chart.remove();
+      refs.current = null;
+    };
+  }, [chartKey]);
 
-    const markers: SeriesMarker<UTCTimestamp>[] = detectSignals(candles).map((s) => ({
-      time: t(candles[s.index]),
-      position: s.type === "beli" ? "belowBar" : "aboveBar",
-      shape: s.type === "beli" ? "arrowUp" : "arrowDown",
-      color: s.type === "beli" ? "#26a69a" : "#ef5350",
-      text: s.type === "beli" ? "BELI" : "JUAL",
-    }));
-    createSeriesMarkers(price, markers);
-    chart.timeScale().setVisibleLogicalRange({ from: candles.length - 120, to: candles.length + 2 });
-
-    return () => chart.remove();
+  useEffect(() => {
+    const r = refs.current;
+    if (!r || candles.length === 0) return;
+    const last = candles[candles.length - 1];
+    if (!r.loaded) {
+      const precision = pricePrecision(last.close);
+      r.price.applyOptions({ priceFormat: { type: "price", precision, minMove: 1 / 10 ** precision } });
+      r.price.setData(candles.map(toBar));
+      r.sellVolume.setData(candles.map((c) => ({ time: toTime(c), value: c.volume })));
+      r.buyVolume.setData(candles.map((c) => ({ time: toTime(c), value: c.takerBuyVolume ?? 0 })));
+      r.chart.timeScale().setVisibleLogicalRange({ from: candles.length - 120, to: candles.length + 2 });
+      r.loaded = true;
+    } else {
+      r.price.update(toBar(last));
+      r.sellVolume.update({ time: toTime(last), value: last.volume });
+      r.buyVolume.update({ time: toTime(last), value: last.takerBuyVolume ?? 0 });
+    }
+    const signals = detectSignals(candles);
+    const newest = signals[signals.length - 1]?.time ?? 0;
+    if (newest !== r.lastSignalTime) {
+      r.lastSignalTime = newest;
+      const markers: SeriesMarker<Time>[] = signals.map((sg) => ({
+        time: toTime(candles[sg.index]),
+        position: sg.type === "beli" ? "belowBar" : "aboveBar",
+        shape: sg.type === "beli" ? "arrowUp" : "arrowDown",
+        color: sg.type === "beli" ? "#26a69a" : "#ef5350",
+        text: sg.type === "beli" ? "BELI" : "JUAL",
+      }));
+      r.markers.setMarkers(markers);
+    }
   }, [candles]);
 
   return <div ref={ref} className="h-[360px] w-full" />;
@@ -83,28 +123,9 @@ function SignalChart({ candles }: { candles: Candle[] }) {
 
 export default function BuySellPanel({ coin, timeframe }: { coin: Coin; timeframe: Timeframe }) {
   const key = `${coin.symbol}:${timeframe.binance}`;
-  const [state, setState] = useState<State>({ key: "" });
+  const live = useLiveCandles(coin.symbol, timeframe.binance);
+  const candles = live.candles;
 
-  useEffect(() => {
-    let cancelled = false;
-    async function load() {
-      try {
-        const candles = await fetchCandles(coin.symbol, timeframe.binance, HISTORY);
-        if (!cancelled) setState({ key, candles });
-      } catch {
-        if (!cancelled) setState((prev) => (prev.key === key && prev.candles ? prev : { key, error: true }));
-      }
-    }
-    load();
-    const timer = setInterval(load, REFRESH_MS);
-    return () => {
-      cancelled = true;
-      clearInterval(timer);
-    };
-  }, [key, coin.symbol, timeframe.binance]);
-
-  const current = state.key === key ? state : null;
-  const candles = current?.candles;
   let stats: SignalStats | null = null;
   let volume: VolumeSplit | null = null;
   if (candles && candles.length > 60) {
@@ -117,13 +138,14 @@ export default function BuySellPanel({ coin, timeframe }: { coin: Coin; timefram
     <section className="panel">
       <header className="panel-header">
         <h2>Sinyal Beli/Jual &amp; Volume</h2>
-        <span className="text-xs text-muted">
+        <span className="flex items-center gap-2 text-xs text-muted">
+          <span className={`h-2 w-2 rounded-full ${live.live ? "animate-pulse bg-up" : "bg-muted"}`} />
           {coin.base}/USDT · {timeframe.label}
         </span>
       </header>
 
-      {!current && <p className="p-4 text-sm text-muted">Memuat sinyal…</p>}
-      {current?.error && <p className="p-4 text-sm text-down">Data sinyal gagal dimuat.</p>}
+      {!candles && !live.error && <p className="p-4 text-sm text-muted">Memuat sinyal…</p>}
+      {live.error && <p className="p-4 text-sm text-down">Data sinyal gagal dimuat, mencoba lagi…</p>}
 
       {candles && stats && (
         <div className="flex flex-col gap-4 p-4">
@@ -212,7 +234,7 @@ export default function BuySellPanel({ coin, timeframe }: { coin: Coin; timefram
             </div>
           </div>
 
-          <SignalChart candles={candles} />
+          <SignalChart candles={candles} chartKey={key} />
           <p className="-mt-2 text-[11px] text-muted">
             ▲ hijau = sinyal beli, ▼ merah = sinyal jual. Batang di bawah: hijau = volume beli, merah = volume
             jual per candle. Geser chart untuk melihat sinyal lebih lama.

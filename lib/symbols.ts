@@ -46,7 +46,6 @@ export const TIMEFRAMES = [
 export type Timeframe = (typeof TIMEFRAMES)[number];
 
 export const BINANCE_API = "https://data-api.binance.vision/api/v3";
-export const BINANCE_WS = "wss://data-stream.binance.vision/ws";
 export const COINGECKO_API = "https://api.coingecko.com/api/v3";
 
 export function formatPrice(n: number): string {

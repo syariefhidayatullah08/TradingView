@@ -1,15 +1,10 @@
 "use client";
 
-import { useEffect, useState } from "react";
-import { fetchCandles } from "@/lib/candles";
 import { SENTIMENT_PARTS } from "@/lib/explanations";
 import type { Signal } from "@/lib/indicators";
-import { sentiment, type Sentiment } from "@/lib/sentiment";
+import { useLiveCandles } from "@/lib/live-candles";
+import { sentiment } from "@/lib/sentiment";
 import type { Coin, Timeframe } from "@/lib/symbols";
-
-const REFRESH_MS = 30_000;
-
-type State = { key: string; data?: Sentiment | null; error?: boolean };
 
 const toneClass: Record<Signal, string> = { 1: "text-up", 0: "text-muted", [-1]: "text-down" };
 
@@ -18,43 +13,23 @@ function barColor(value: number): string {
 }
 
 export default function CoinSentiment({ coin, timeframe }: { coin: Coin; timeframe: Timeframe }) {
-  const key = `${coin.symbol}:${timeframe.binance}`;
-  const [state, setState] = useState<State>({ key: "" });
+  const live = useLiveCandles(coin.symbol, timeframe.binance);
+  const s = live.candles ? sentiment(live.candles) : null;
 
-  useEffect(() => {
-    let cancelled = false;
-    async function load() {
-      try {
-        const candles = await fetchCandles(coin.symbol, timeframe.binance);
-        if (!cancelled) setState({ key, data: sentiment(candles) });
-      } catch {
-        if (!cancelled) {
-          // Keep showing the last good reading for this chart if a refresh fails.
-          setState((prev) => (prev.key === key && prev.data ? prev : { key, error: true }));
-        }
-      }
-    }
-    load();
-    const timer = setInterval(load, REFRESH_MS);
-    return () => {
-      cancelled = true;
-      clearInterval(timer);
-    };
-  }, [key, coin.symbol, timeframe.binance]);
-
-  const current = state.key === key ? state : null;
-  const s = current?.data;
 
   return (
     <section className="panel">
       <header className="panel-header">
         <h2>Sentimen {coin.base}</h2>
-        <span className="text-xs text-muted">Sesuai chart · {timeframe.label}</span>
+        <span className="flex items-center gap-2 text-xs text-muted">
+          <span className={`h-2 w-2 rounded-full ${live.live ? "animate-pulse bg-up" : "bg-muted"}`} />
+          Sesuai chart · {timeframe.label}
+        </span>
       </header>
       <div className="p-4">
-        {!current && <p className="text-sm text-muted">Memuat…</p>}
-        {current?.error && <p className="text-sm text-down">Sentimen gagal dimuat.</p>}
-        {current && !current.error && !s && (
+        {!live.candles && !live.error && <p className="text-sm text-muted">Memuat…</p>}
+        {live.error && <p className="text-sm text-down">Sentimen gagal dimuat, mencoba lagi…</p>}
+        {live.candles && !s && (
           <p className="text-sm text-muted">Data historis belum cukup.</p>
         )}
         {s && (

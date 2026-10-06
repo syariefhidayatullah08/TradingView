@@ -1,15 +1,11 @@
 "use client";
 
-import { useEffect, useState } from "react";
-import { fetchCandles } from "@/lib/candles";
+import { useState } from "react";
 import { ATR, INDICATORS, PIVOT, SUMMARY } from "@/lib/explanations";
 import Explain from "./Explain";
-import { analyze, summaryLabel, type Candle, type Signal } from "@/lib/indicators";
+import { analyze, summaryLabel, type Signal } from "@/lib/indicators";
+import { useLiveCandles } from "@/lib/live-candles";
 import { formatPrice, type Coin, type Timeframe } from "@/lib/symbols";
-
-const REFRESH_MS = 30_000;
-
-type State = { key: string; candles?: Candle[]; error?: string };
 
 const toneClass: Record<Signal, string> = {
   1: "text-up",
@@ -19,43 +15,17 @@ const toneClass: Record<Signal, string> = {
 const signalText: Record<Signal, string> = { 1: "Beli", 0: "Netral", [-1]: "Jual" };
 
 export default function AnalysisPanel({ coin, timeframe }: { coin: Coin; timeframe: Timeframe }) {
-  const key = `${coin.symbol}:${timeframe.binance}`;
-  const [state, setState] = useState<State>({ key: "" });
   const [explain, setExplain] = useState(true);
+  const live = useLiveCandles(coin.symbol, timeframe.binance);
+  const analysis = live.candles ? analyze(live.candles, formatPrice) : null;
 
-  useEffect(() => {
-    let cancelled = false;
-    async function load() {
-      try {
-        const candles = await fetchCandles(coin.symbol, timeframe.binance);
-        if (!cancelled) setState({ key, candles });
-      } catch (e) {
-        if (!cancelled) {
-          // Keep showing the last good data for this symbol if a refresh fails.
-          setState((prev) =>
-            prev.key === key && prev.candles
-              ? prev
-              : { key, error: e instanceof Error ? e.message : "Gagal memuat data" },
-          );
-        }
-      }
-    }
-    load();
-    const timer = setInterval(load, REFRESH_MS);
-    return () => {
-      cancelled = true;
-      clearInterval(timer);
-    };
-  }, [key, coin.symbol, timeframe.binance]);
-
-  const current = state.key === key ? state : null;
-  const analysis = current?.candles ? analyze(current.candles, formatPrice) : null;
 
   return (
     <section className="panel flex flex-col">
       <header className="panel-header">
         <h2>Analisa Teknikal</h2>
         <span className="flex items-center gap-2 text-xs text-muted">
+          <span className={`h-2 w-2 rounded-full ${live.live ? "animate-pulse bg-up" : "bg-muted"}`} />
           {coin.base}/USDT · {timeframe.label}
           <button
             onClick={() => setExplain((e) => !e)}
@@ -66,11 +36,9 @@ export default function AnalysisPanel({ coin, timeframe }: { coin: Coin; timefra
         </span>
       </header>
 
-      {!current && <p className="p-4 text-sm text-muted">Memuat data pasar…</p>}
-      {current?.error && (
-        <p className="p-4 text-sm text-down">Data pasar gagal dimuat ({current.error}).</p>
-      )}
-      {current?.candles && !analysis && (
+      {!live.candles && !live.error && <p className="p-4 text-sm text-muted">Memuat data pasar…</p>}
+      {live.error && <p className="p-4 text-sm text-down">Data pasar gagal dimuat, mencoba lagi…</p>}
+      {live.candles && !analysis && (
         <p className="p-4 text-sm text-muted">Data historis belum cukup untuk dianalisa.</p>
       )}
 
