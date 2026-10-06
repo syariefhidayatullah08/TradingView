@@ -103,3 +103,65 @@ function fmt(n: number): string {
   const digits = n >= 1000 ? 2 : n >= 1 ? 3 : n >= 0.01 ? 5 : 8;
   return `$${n.toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: digits })}`;
 }
+
+export type ClosedTrade = {
+  id: string;
+  symbol: string;
+  interval: string;
+  entryPrice: number;
+  entryTime: number;
+  amount: number | null;
+  exitPrice: number;
+  exitTime: number;
+};
+
+export type TradeResult = { pnlPct: number; pnlValue: number | null };
+
+export function tradeResult(t: ClosedTrade): TradeResult {
+  return {
+    pnlPct: ((t.exitPrice - t.entryPrice) / t.entryPrice) * 100,
+    pnlValue: t.amount === null ? null : (t.exitPrice - t.entryPrice) * t.amount,
+  };
+}
+
+export type Report = {
+  count: number;
+  wins: number;
+  losses: number;
+  avgPct: number | null;
+  // USDT totals over trades that recorded an amount.
+  profit: number;
+  loss: number;
+  net: number;
+  valued: number;
+};
+
+export function buildReport(trades: ClosedTrade[]): Report {
+  let wins = 0;
+  let losses = 0;
+  let profit = 0;
+  let loss = 0;
+  let valued = 0;
+  let pctSum = 0;
+  for (const t of trades) {
+    const r = tradeResult(t);
+    pctSum += r.pnlPct;
+    if (r.pnlPct > 0) wins++;
+    else if (r.pnlPct < 0) losses++;
+    if (r.pnlValue !== null) {
+      valued++;
+      if (r.pnlValue >= 0) profit += r.pnlValue;
+      else loss += -r.pnlValue;
+    }
+  }
+  return {
+    count: trades.length,
+    wins,
+    losses,
+    avgPct: trades.length ? pctSum / trades.length : null,
+    profit,
+    loss,
+    net: profit - loss,
+    valued,
+  };
+}
