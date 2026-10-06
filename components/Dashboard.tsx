@@ -10,6 +10,7 @@ import FundamentalPanel from "./FundamentalPanel";
 import MarketDirection from "./MarketDirection";
 import MarketTable from "./MarketTable";
 import NewsPanel from "./NewsPanel";
+import PositionsPanel from "./PositionsPanel";
 import RealtimeCharts from "./RealtimeCharts";
 import SettingsPanel from "./SettingsPanel";
 import SignalsOverview from "./SignalsOverview";
@@ -46,6 +47,7 @@ const TABS = [
   { id: "realtime", label: "Chart Real-Time" },
   { id: "teknikal", label: "Analisa Teknikal" },
   { id: "sinyal", label: "Sinyal Beli/Jual" },
+  { id: "posisi", label: "Posisi Saya" },
   { id: "fundamental", label: "Analisa Fundamental" },
   { id: "berita", label: "Berita Dunia" },
   { id: "kalender", label: "Kalender Ekonomi" },
@@ -203,6 +205,7 @@ export default function Dashboard({ isOwner = false }: { isOwner?: boolean }) {
               </section>
             </div>
           )}
+          {tab === "posisi" && <PositionsPanel coin={coin} timeframe={timeframe} />}
           {tab === "fundamental" && <FundamentalPanel coin={coin} />}
           {tab === "pengaturan" && <SettingsPanel isOwner={isOwner} />}
           {tab === "berita" && <NewsPanel />}
@@ -220,7 +223,7 @@ export default function Dashboard({ isOwner = false }: { isOwner?: boolean }) {
         <aside className="flex flex-col gap-2">
           <CoinSentiment coin={coin} timeframe={timeframe} />
           <TokocryptoCard coin={coin} />
-          <MarketTable selected={coin.symbol} onSelect={setCoin} />
+          <MarketTable selected={coin.symbol} timeframe={timeframe} onSelect={setCoin} />
         </aside>
       </div>
 
