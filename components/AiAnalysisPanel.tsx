@@ -15,7 +15,7 @@ const arahStyle = {
 
 const penilaianStyle = {
   bagus: { text: "BAGUS", cls: "bg-up/15 text-up" },
-  cukup: { text: "CUKUP", cls: "bg-yellow-500/15 text-yellow-400" },
+  cukup: { text: "CUKUP", cls: "bg-yellow-500/15 text-amber-600" },
   hindari: { text: "HINDARI", cls: "bg-down/15 text-down" },
 } as const;
 
@@ -91,7 +91,7 @@ export default function AiAnalysisPanel({ coin }: { coin: Coin }) {
       {a && (
         <div className="flex flex-col gap-4 p-4">
           {a.model === null && (
-            <p className="rounded border border-yellow-600/40 bg-yellow-500/10 px-3 py-2 text-xs text-yellow-400">
+            <p className="rounded border border-yellow-600/40 bg-yellow-500/10 px-3 py-2 text-xs text-amber-600">
               AI belum aktif, jadi ini analisa otomatis berbasis aturan dari indikator teknikal dan
               fundamental (belum menimbang isi berita).
             </p>

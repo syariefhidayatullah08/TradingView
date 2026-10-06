@@ -55,7 +55,7 @@ function Card({ label, basis, result }: { label: string; basis: string; result: 
           </div>
 
           {o.warning && (
-            <p className="rounded border border-yellow-600/40 bg-yellow-500/10 px-2 py-1 text-[11px] text-yellow-400">
+            <p className="rounded border border-yellow-600/40 bg-yellow-500/10 px-2 py-1 text-[11px] text-amber-600">
               ⚠ {o.warning}
             </p>
           )}

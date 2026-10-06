@@ -114,7 +114,7 @@ export default function AccessSettings() {
                     ) : u.approved ? (
                       <span className="text-up">Disetujui</span>
                     ) : (
-                      <span className="text-yellow-400">Menunggu</span>
+                      <span className="text-amber-600">Menunggu</span>
                     )}
                   </td>
                   <td className="px-4 py-2 text-right">

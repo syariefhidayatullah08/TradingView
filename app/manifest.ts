@@ -7,8 +7,8 @@ export default function manifest(): MetadataRoute.Manifest {
     description: "Analisa teknikal dan fundamental crypto dengan berita politik dan ekonomi dunia terbaru.",
     start_url: "/",
     display: "standalone",
-    background_color: "#0b0e14",
-    theme_color: "#131722",
+    background_color: "#fff1f7",
+    theme_color: "#fbcfe8",
     lang: "id",
     icons: [
       { src: "/icon-192.png", sizes: "192x192", type: "image/png", purpose: "any" },
