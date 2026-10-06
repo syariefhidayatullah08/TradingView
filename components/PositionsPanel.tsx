@@ -6,6 +6,7 @@ import {
   evaluate,
   planLevels,
   type ClosedTrade,
+  type ExitMode,
   type Position,
   type Verdict,
 } from "@/lib/positions";
@@ -72,7 +73,10 @@ function PositionCard({
               {formatPrice(position.entryPrice)}
               {position.amount !== null &&
                 ` · ${position.amount} ${coin?.base}`}{" "}
-              · rencana candle {tf}
+              · candle {tf} ·{" "}
+              {position.mode === "untung"
+                ? "jual hanya saat untung"
+                : "pakai stop loss"}
             </span>
           </div>
           {status && (
@@ -170,7 +174,9 @@ function PositionCard({
           <div className="mt-3 grid grid-cols-3 gap-2 text-center font-mono text-xs">
             <div className="rounded bg-panel p-2">
               <div className="font-sans text-[11px] text-down">
-                Stop loss (jual rugi)
+                {position.mode === "untung"
+                  ? "Tanpa stop loss"
+                  : "Stop loss (jual rugi)"}
               </div>
               <div>${formatPrice(position.stop)}</div>
               <div className="text-[11px] text-muted">
@@ -226,7 +232,9 @@ function PositionCard({
             />
           </div>
           <div className="mt-1 flex justify-between text-[11px] text-muted">
-            <span>Stop loss</span>
+            <span>
+              {position.mode === "untung" ? "Rugi (ditahan)" : "Stop loss"}
+            </span>
             <span>Harga beli</span>
             <span>Target 1</span>
           </div>
@@ -247,6 +255,7 @@ function NewPositionForm({
 }) {
   const [symbol, setSymbol] = useState(coin.symbol);
   const [interval, setInterval] = useState<string>(timeframe.binance);
+  const [mode, setMode] = useState<ExitMode>("untung");
   const [entry, setEntry] = useState("");
   const [amount, setAmount] = useState("");
   const live = useLiveCandles(symbol, interval);
@@ -264,6 +273,7 @@ function NewPositionForm({
     onAdd({
       ...stampNew(),
       symbol,
+      mode,
       interval,
       entryPrice,
       amount: amount.trim() === "" ? null : Number(amount) || null,
@@ -282,7 +292,7 @@ function NewPositionForm({
 
   return (
     <div className="flex flex-col gap-3 rounded bg-base p-3">
-      <div className="grid gap-2 sm:grid-cols-4">
+      <div className="grid gap-2 sm:grid-cols-5">
         <label className="text-[11px] text-muted">
           Koin
           <select
@@ -329,6 +339,17 @@ function NewPositionForm({
           />
         </label>
         <label className="text-[11px] text-muted">
+          Kapan boleh jual
+          <select
+            value={mode}
+            onChange={(e) => setMode(e.target.value as ExitMode)}
+            className="mt-1 w-full rounded border border-line bg-panel px-2 py-1.5 text-sm text-fg"
+          >
+            <option value="untung">Hanya saat untung</option>
+            <option value="stoploss">Pakai stop loss</option>
+          </select>
+        </label>
+        <label className="text-[11px] text-muted">
           Jumlah koin (opsional)
           <input
             value={amount}
@@ -343,8 +364,14 @@ function NewPositionForm({
       {levels && entryPrice ? (
         <div className="flex flex-wrap items-center justify-between gap-2 text-xs">
           <span className="font-mono">
-            <span className="text-down">Stop ${formatPrice(levels.stop)}</span>{" "}
-            ·{" "}
+            {mode === "stoploss" && (
+              <>
+                <span className="text-down">
+                  Stop ${formatPrice(levels.stop)}
+                </span>{" "}
+                ·{" "}
+              </>
+            )}
             <span className="text-up">
               Target 1 ${formatPrice(levels.target1)}
             </span>{" "}
@@ -374,11 +401,14 @@ function NewPositionForm({
         </p>
       )}
       <p className="text-[11px] leading-snug text-muted">
-        Stop loss = harga beli − 1,5×ATR (gerak rata-rata per candle). Target 1
-        = resistance terdekat jika jaraknya minimal sama dengan risiko, kalau
-        tidak harga beli + 2×ATR. Target 2 = harga beli + 3×ATR. Setelah
-        dicatat, aplikasi memantau posisi ini real-time dan memberi tahu kapan
-        harus jual.
+        <strong className="text-fg">Hanya saat untung</strong>: aplikasi tidak
+        pernah menyarankan jual di bawah harga beli; sinyal JUAL baru muncul
+        setelah untung minimal 0,5% (menutup biaya) dan target tercapai, sinyal
+        jual terbentuk, atau arah pasar berbalik turun. Risikonya: kalau harga
+        terus turun, posisi bisa tertahan lama atau tidak pernah kembali untung.{" "}
+        <strong className="text-fg">Pakai stop loss</strong>: jual rugi di harga
+        beli − 1,5×ATR untuk membatasi kerugian. Target 1 = resistance terdekat
+        (atau +2×ATR), target 2 = +3×ATR.
       </p>
     </div>
   );

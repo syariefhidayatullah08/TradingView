@@ -1,9 +1,15 @@
 import { atr, type Candle } from "./indicators";
+import { outlook } from "./outlook";
 import { detectSignals } from "./signals";
+
+// "untung": never advise selling below the entry price (no stop loss); sell only once the
+// position is in profit and the market turns. "stoploss": classic plan with a stop loss.
+export type ExitMode = "untung" | "stoploss";
 
 export type Position = {
   id: string;
   symbol: string;
+  mode: ExitMode;
   // Binance interval the plan was built on, e.g. "1h".
   interval: string;
   entryPrice: number;
@@ -14,7 +20,14 @@ export type Position = {
   target2: number;
 };
 
-export type PlanLevels = { stop: number; target1: number; target2: number; atr: number; support: number; resistance: number };
+export type PlanLevels = {
+  stop: number;
+  target1: number;
+  target2: number;
+  atr: number;
+  support: number;
+  resistance: number;
+};
 
 export type Verdict = "tahan" | "amankan" | "jual";
 
@@ -33,9 +46,14 @@ const STOP_ATR = 1.5;
 const TARGET_ATR = 2;
 const TARGET2_ATR = 3;
 const SWING_LOOKBACK = 20;
+// Net profit needed before a sale counts as a win, covering Tokocrypto fees on both sides.
+const MIN_PROFIT_PCT = 0.5;
 
 // Exit levels for a buy at `entry`, from the volatility and swing levels of the candles.
-export function planLevels(candles: Candle[], entry: number): PlanLevels | null {
+export function planLevels(
+  candles: Candle[],
+  entry: number,
+): PlanLevels | null {
   const a = atr(candles);
   if (a === null || candles.length < SWING_LOOKBACK + 1) return null;
   const swing = candles.slice(-SWING_LOOKBACK - 1, -1);
@@ -44,15 +62,22 @@ export function planLevels(candles: Candle[], entry: number): PlanLevels | null 
   const stop = entry - STOP_ATR * a;
   const risk = entry - stop;
   // Take the nearest resistance as the first target when it pays at least 1:1, else a volatility target.
-  const target1 = resistance > entry + risk ? resistance : entry + TARGET_ATR * a;
+  const target1 =
+    resistance > entry + risk ? resistance : entry + TARGET_ATR * a;
   const target2 = Math.max(target1 + a, entry + TARGET2_ATR * a);
   return { stop, target1, target2, atr: a, support, resistance };
 }
 
-export function evaluate(position: Position, candles: Candle[]): PositionStatus {
+export function evaluate(
+  position: Position,
+  candles: Candle[],
+): PositionStatus {
   const price = candles[candles.length - 1].close;
   const pnlPct = ((price - position.entryPrice) / position.entryPrice) * 100;
-  const pnlValue = position.amount === null ? null : (price - position.entryPrice) * position.amount;
+  const pnlValue =
+    position.amount === null
+      ? null
+      : (price - position.entryPrice) * position.amount;
   const risk = position.entryPrice - position.stop;
   const reasons: string[] = [];
   let verdict: Verdict = "tahan";
@@ -60,42 +85,158 @@ export function evaluate(position: Position, candles: Candle[]): PositionStatus 
 
   const signals = detectSignals(candles);
   const last = signals[signals.length - 1];
-  const sellSignalAfterEntry = last && last.type === "jual" && last.time > position.entryTime;
+  const sellSignalAfterEntry =
+    last && last.type === "jual" && last.time > position.entryTime;
+
+  if (position.mode === "untung") {
+    return profitOnly(
+      position,
+      candles,
+      price,
+      pnlPct,
+      pnlValue,
+      sellSignalAfterEntry ? last.reason : null,
+    );
+  }
 
   if (price <= position.stop) {
     verdict = "jual";
     headline = "JUAL SEKARANG: batas rugi (stop loss) tersentuh";
-    reasons.push(`Harga ${fmt(price)} di bawah stop loss ${fmt(position.stop)}. Batasi kerugian sebelum membesar.`);
+    reasons.push(
+      `Harga ${fmt(price)} di bawah stop loss ${fmt(position.stop)}. Batasi kerugian sebelum membesar.`,
+    );
   } else if (price >= position.target2) {
     verdict = "jual";
     headline = "JUAL: target 2 tercapai";
-    reasons.push(`Harga sudah melewati target 2 (${fmt(position.target2)}). Ambil untung seluruhnya.`);
+    reasons.push(
+      `Harga sudah melewati target 2 (${fmt(position.target2)}). Ambil untung seluruhnya.`,
+    );
   } else if (price >= position.target1) {
     verdict = sellSignalAfterEntry ? "jual" : "amankan";
     headline = sellSignalAfterEntry
       ? "JUAL: target 1 tercapai dan sinyal jual muncul"
       : "Target 1 tercapai: jual sebagian, sisanya tahan dengan stop di harga beli";
-    reasons.push(`Harga ${fmt(price)} di atas target 1 (${fmt(position.target1)}).`);
+    reasons.push(
+      `Harga ${fmt(price)} di atas target 1 (${fmt(position.target1)}).`,
+    );
     if (sellSignalAfterEntry) reasons.push(`Sinyal jual: ${last.reason}.`);
-    else reasons.push(`Target berikutnya ${fmt(position.target2)}; naikkan stop loss ke ${fmt(position.entryPrice)} agar tidak rugi.`);
+    else
+      reasons.push(
+        `Target berikutnya ${fmt(position.target2)}; naikkan stop loss ke ${fmt(position.entryPrice)} agar tidak rugi.`,
+      );
   } else if (sellSignalAfterEntry) {
     verdict = pnlPct >= 0 ? "jual" : "amankan";
-    headline = pnlPct >= 0 ? "JUAL: sinyal jual muncul setelah pembelian" : "Sinyal jual muncul saat posisi rugi: siapkan keluar";
+    headline =
+      pnlPct >= 0
+        ? "JUAL: sinyal jual muncul setelah pembelian"
+        : "Sinyal jual muncul saat posisi rugi: siapkan keluar";
     reasons.push(`Sinyal jual: ${last.reason}.`);
-    if (pnlPct < 0) reasons.push(`Rugi ${pnlPct.toFixed(2)}%. Jual jika harga tidak segera pulih di atas ${fmt(position.entryPrice)}.`);
+    if (pnlPct < 0)
+      reasons.push(
+        `Rugi ${pnlPct.toFixed(2)}%. Jual jika harga tidak segera pulih di atas ${fmt(position.entryPrice)}.`,
+      );
   } else if (price - position.entryPrice >= risk) {
     verdict = "amankan";
     headline = "Untung sudah 1× risiko: naikkan stop loss ke harga beli";
-    reasons.push(`Harga ${fmt(price)} naik ${pnlPct.toFixed(2)}%. Geser stop ke ${fmt(position.entryPrice)} supaya posisi ini tidak bisa rugi.`);
+    reasons.push(
+      `Harga ${fmt(price)} naik ${pnlPct.toFixed(2)}%. Geser stop ke ${fmt(position.entryPrice)} supaya posisi ini tidak bisa rugi.`,
+    );
   } else {
-    reasons.push(`Harga ${fmt(price)} masih antara stop loss ${fmt(position.stop)} dan target 1 ${fmt(position.target1)}.`);
+    reasons.push(
+      `Harga ${fmt(price)} masih antara stop loss ${fmt(position.stop)} dan target 1 ${fmt(position.target1)}.`,
+    );
   }
 
   const progress =
     price >= position.entryPrice
-      ? Math.min(1, (price - position.entryPrice) / (position.target1 - position.entryPrice))
+      ? Math.min(
+          1,
+          (price - position.entryPrice) /
+            (position.target1 - position.entryPrice),
+        )
       : -Math.min(1, (position.entryPrice - price) / risk);
 
+  return { price, pnlPct, pnlValue, verdict, headline, reasons, progress };
+}
+
+// Profit-only mode: hold through losses, sell only in profit when the market stops supporting the trade.
+function profitOnly(
+  position: Position,
+  candles: Candle[],
+  price: number,
+  pnlPct: number,
+  pnlValue: number | null,
+  sellSignal: string | null,
+): PositionStatus {
+  const o = outlook(candles, 1);
+  const trendDown = o !== null && o.tone === -1 && o.strength >= 45;
+  const reasons: string[] = [];
+  let verdict: Verdict = "tahan";
+  let headline: string;
+  const progress = Math.max(
+    -1,
+    Math.min(
+      1,
+      (price - position.entryPrice) / (position.target1 - position.entryPrice),
+    ),
+  );
+
+  if (pnlPct < MIN_PROFIT_PCT) {
+    headline =
+      pnlPct < 0
+        ? `BELUM UNTUNG: tahan, jangan jual di bawah harga beli ${fmt(position.entryPrice)}`
+        : `Untung masih tipis (${pnlPct.toFixed(2)}%): tahan sampai di atas ${MIN_PROFIT_PCT}% agar menutup biaya`;
+    reasons.push(
+      pnlPct < 0
+        ? `Harga ${fmt(price)} masih ${Math.abs(pnlPct).toFixed(2)}% di bawah harga beli. Mode ini menunggu sampai untung.`
+        : `Harga ${fmt(price)}, baru ${pnlPct.toFixed(2)}% di atas harga beli.`,
+    );
+    if (o)
+      reasons.push(
+        `Arah pasar sekarang ${o.direction} (kekuatan ${o.strength}%)${trendDown ? "; pemulihan bisa makan waktu lama" : ""}.`,
+      );
+    reasons.push(
+      `Harga perlu mencapai ${fmt(position.entryPrice * (1 + MIN_PROFIT_PCT / 100))} dulu sebelum sinyal jual diberikan.`,
+    );
+    return { price, pnlPct, pnlValue, verdict, headline, reasons, progress };
+  }
+
+  // In profit from here on.
+  if (price >= position.target2) {
+    verdict = "jual";
+    headline = `JUAL: untung ${pnlPct.toFixed(2)}%, target 2 tercapai`;
+    reasons.push(
+      `Harga ${fmt(price)} sudah melewati target 2 (${fmt(position.target2)}). Ambil untung seluruhnya.`,
+    );
+  } else if (sellSignal) {
+    verdict = "jual";
+    headline = `JUAL: untung ${pnlPct.toFixed(2)}% dan sinyal jual muncul`;
+    reasons.push(`Sinyal jual: ${sellSignal}. Amankan untung sebelum hilang.`);
+  } else if (trendDown) {
+    verdict = "jual";
+    headline = `JUAL: untung ${pnlPct.toFixed(2)}% dan arah pasar berbalik turun`;
+    reasons.push(
+      `Arah pasar TURUN dengan kekuatan ${o?.strength}%. Untung yang ada bisa habis kalau ditahan.`,
+    );
+  } else if (price >= position.target1) {
+    verdict = "amankan";
+    headline = `Target 1 tercapai (untung ${pnlPct.toFixed(2)}%): jual sebagian, sisanya tahan`;
+    reasons.push(
+      `Harga ${fmt(price)} di atas target 1 (${fmt(position.target1)}); target berikutnya ${fmt(position.target2)}.`,
+    );
+    if (o)
+      reasons.push(
+        `Arah pasar masih ${o.direction}, jadi sisa posisi boleh ditahan.`,
+      );
+  } else {
+    headline = `UNTUNG ${pnlPct.toFixed(2)}%: tahan, pasar masih mendukung`;
+    reasons.push(
+      `Belum ada sinyal jual dan arah pasar ${o?.direction ?? "belum jelas"}. Target 1 di ${fmt(position.target1)}.`,
+    );
+    reasons.push(
+      "Sinyal JUAL akan muncul saat target tercapai, sinyal jual terbentuk, atau arah pasar berbalik turun.",
+    );
+  }
   return { price, pnlPct, pnlValue, verdict, headline, reasons, progress };
 }
 
@@ -120,7 +261,8 @@ export type TradeResult = { pnlPct: number; pnlValue: number | null };
 export function tradeResult(t: ClosedTrade): TradeResult {
   return {
     pnlPct: ((t.exitPrice - t.entryPrice) / t.entryPrice) * 100,
-    pnlValue: t.amount === null ? null : (t.exitPrice - t.entryPrice) * t.amount,
+    pnlValue:
+      t.amount === null ? null : (t.exitPrice - t.entryPrice) * t.amount,
   };
 }
 

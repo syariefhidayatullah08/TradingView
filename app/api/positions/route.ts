@@ -43,6 +43,7 @@ function sanitizePositions(raw: unknown): Position[] {
     out.push({
       id: id(p.id),
       symbol: p.symbol,
+      mode: p.mode === "stoploss" ? "stoploss" : "untung",
       interval: typeof p.interval === "string" ? p.interval.slice(0, 4) : "1h",
       entryPrice,
       entryTime: num(p.entryTime) ?? Date.now(),
