@@ -86,3 +86,10 @@ export const SENTIMENT_PARTS: Record<string, string> = {
   "Posisi harga":
     "Letak harga di antara titik terendah (0%) dan tertinggi (100%) 20 candle terakhir. Dekat 100% berarti harga sedang di puncak rentangnya.",
 };
+
+export const SIGNALS: Explanation = {
+  apa: "Sinyal BELI muncul saat garis MACD memotong ke atas garis sinyalnya ketika harga di atas EMA 50 (mengikuti tren), atau saat RSI naik keluar dari zona oversold (di bawah 30). Sinyal JUAL adalah kebalikannya: MACD memotong ke bawah saat harga di bawah EMA 50, atau RSI turun keluar dari zona overbought (di atas 70). Sinyal selalu bergantian beli lalu jual.",
+  cara: "Rekam jejak menghitung setiap pasangan beli→jual di candle yang tampil: berapa persen yang berakhir untung dan rata-rata hasilnya. Volume beli vs jual membandingkan volume yang dieksekusi pembeli pasar (market buy) dengan penjual pasar di Binance.",
+  keandalan:
+    "Ini aturan klasik yang banyak dipakai, dan rekam jejaknya dihitung dari data sungguhan koin ini, tetapi tanpa biaya transaksi dan hanya untuk candle yang tampil. Hasil masa lalu tidak menjamin hasil berikutnya; pakai sinyal sebagai saat untuk memeriksa, bukan perintah otomatis.",
+};

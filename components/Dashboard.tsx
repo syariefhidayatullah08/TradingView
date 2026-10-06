@@ -2,15 +2,16 @@
 
 import { useEffect, useState } from "react";
 import { UserButton } from "@clerk/nextjs";
-import Link from "next/link";
 import AiAnalysisPanel from "./AiAnalysisPanel";
 import AnalysisPanel from "./AnalysisPanel";
+import BuySellPanel from "./BuySellPanel";
 import CoinSentiment from "./CoinSentiment";
 import FundamentalPanel from "./FundamentalPanel";
 import MarketDirection from "./MarketDirection";
 import MarketTable from "./MarketTable";
 import NewsPanel from "./NewsPanel";
 import RealtimeCharts from "./RealtimeCharts";
+import SettingsPanel from "./SettingsPanel";
 import TokocryptoCard from "./TokocryptoCard";
 import TVWidget from "./TVWidget";
 import { COINS, TIMEFRAMES, type Coin, type Timeframe } from "@/lib/symbols";
@@ -46,6 +47,7 @@ const TABS = [
   { id: "fundamental", label: "Analisa Fundamental" },
   { id: "berita", label: "Berita Dunia" },
   { id: "kalender", label: "Kalender Ekonomi" },
+  { id: "pengaturan", label: "Pengaturan" },
 ] as const;
 
 type TabId = (typeof TABS)[number]["id"];
@@ -99,11 +101,12 @@ export default function Dashboard({ isOwner = false }: { isOwner?: boolean }) {
         <div className="min-w-0 flex-1 basis-80 overflow-hidden">
           <TVWidget script="ticker-tape" config={TICKER_CONFIG} height={46} />
         </div>
-        {isOwner && (
-          <Link href="/admin" className="rounded border border-line px-2.5 py-1.5 text-xs font-medium hover:bg-base">
-            Kelola akses
-          </Link>
-        )}
+        <button
+          onClick={() => setTab("pengaturan")}
+          className="rounded border border-line px-2.5 py-1.5 text-xs font-medium hover:bg-base"
+        >
+          {isOwner ? "Kelola akses" : "Pengaturan"}
+        </button>
         <UserButton />
       </header>
 
@@ -166,6 +169,7 @@ export default function Dashboard({ isOwner = false }: { isOwner?: boolean }) {
             <RealtimeCharts timeframe={timeframe} selected={coin.symbol} onSelect={setCoin} />
           )}
           {tab === "teknikal" && <MarketDirection coin={coin} />}
+          {tab === "teknikal" && <BuySellPanel coin={coin} timeframe={timeframe} />}
           {tab === "teknikal" && (
             <div className="grid gap-2 md:grid-cols-2">
               <AnalysisPanel coin={coin} timeframe={timeframe} />
@@ -193,6 +197,7 @@ export default function Dashboard({ isOwner = false }: { isOwner?: boolean }) {
             </div>
           )}
           {tab === "fundamental" && <FundamentalPanel coin={coin} />}
+          {tab === "pengaturan" && <SettingsPanel isOwner={isOwner} />}
           {tab === "berita" && <NewsPanel />}
           {tab === "kalender" && (
             <section className="panel overflow-hidden">
