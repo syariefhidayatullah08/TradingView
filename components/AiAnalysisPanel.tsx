@@ -144,7 +144,7 @@ export default function AiAnalysisPanel({ coin }: { coin: Coin }) {
                 href={tokocryptoUrl(coin.base, coin.tokoIdr ? "IDR" : "USDT")}
                 target="_blank"
                 rel="noopener noreferrer"
-                className="rounded bg-accent px-3 py-1.5 text-xs font-semibold text-white hover:opacity-90"
+                className="rounded btn-active px-3 py-1.5 text-xs font-semibold text-white hover:opacity-90"
               >
                 Buka {coin.base} di Tokocrypto ↗
               </a>

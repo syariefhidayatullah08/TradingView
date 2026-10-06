@@ -77,7 +77,7 @@ export default function TokocryptoCard({ coin }: { coin: Coin }) {
                 href={tokocryptoUrl(coin.base, "IDR")}
                 target="_blank"
                 rel="noopener noreferrer"
-                className="rounded bg-accent px-3 py-1.5 text-xs font-semibold text-white hover:opacity-90"
+                className="rounded btn-active px-3 py-1.5 text-xs font-semibold text-white hover:opacity-90"
               >
                 Trading {coin.base}/IDR ↗
               </a>

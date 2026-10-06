@@ -105,7 +105,7 @@ function PositionCard({
           )}
           <button
             onClick={() => setClosing((c) => !c)}
-            className="rounded bg-accent px-2.5 py-1 text-[11px] font-semibold text-white hover:opacity-90"
+            className="rounded btn-active px-2.5 py-1 text-[11px] font-semibold text-white hover:opacity-90"
           >
             Sudah dijual
           </button>
@@ -388,7 +388,7 @@ function NewPositionForm({
           </span>
           <button
             onClick={submit}
-            className="rounded bg-accent px-3 py-1.5 text-xs font-semibold text-white hover:opacity-90"
+            className="rounded btn-active px-3 py-1.5 text-xs font-semibold text-white hover:opacity-90"
           >
             Catat pembelian
           </button>

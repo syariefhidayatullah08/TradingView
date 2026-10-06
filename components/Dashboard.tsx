@@ -75,7 +75,7 @@ export default function Dashboard({ isOwner = false }: { isOwner?: boolean }) {
     <div className="flex w-full flex-col gap-2 p-2">
       <header className="panel flex flex-wrap items-center gap-x-4 gap-y-2 px-3 py-2">
         <h1 className="text-base font-bold tracking-tight">
-          Kripto<span className="text-accent-soft">Scope</span>
+          <span className="brand">KriptoScope</span>
         </h1>
         <select
           value={coin.symbol}
@@ -95,7 +95,7 @@ export default function Dashboard({ isOwner = false }: { isOwner?: boolean }) {
               key={tf.tv}
               onClick={() => setTimeframe(tf)}
               className={`px-2.5 py-1.5 text-xs font-medium ${
-                tf.tv === timeframe.tv ? "bg-accent text-white" : "bg-base text-muted hover:text-fg"
+                tf.tv === timeframe.tv ? "btn-active text-white" : "bg-base text-muted hover:text-fg"
               }`}
             >
               {tf.label}
@@ -146,6 +146,8 @@ export default function Dashboard({ isOwner = false }: { isOwner?: boolean }) {
               allow_symbol_change: false,
               hide_side_toolbar: false,
               studies: ["STD;RSI", "STD;MACD"],
+              backgroundColor: "#12163a",
+              gridColor: "rgba(132,140,255,0.08)",
               support_host: "https://www.tradingview.com",
             }}
           />
@@ -160,7 +162,7 @@ export default function Dashboard({ isOwner = false }: { isOwner?: boolean }) {
                 key={t.id}
                 onClick={() => setTab(t.id)}
                 className={`rounded px-3 py-1.5 text-sm font-medium ${
-                  tab === t.id ? "bg-accent text-white" : "text-muted hover:bg-base hover:text-fg"
+                  tab === t.id ? "btn-active text-white" : "text-muted hover:bg-base hover:text-fg"
                 }`}
               >
                 {t.label}

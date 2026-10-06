@@ -123,7 +123,7 @@ export default function AccessSettings() {
                         disabled={busy === u.id}
                         onClick={() => approve(u.id, !u.approved)}
                         className={`rounded px-2.5 py-1 text-xs font-semibold disabled:opacity-50 ${
-                          u.approved ? "border border-line hover:bg-base" : "bg-accent text-white hover:opacity-90"
+                          u.approved ? "border border-line hover:bg-base" : "btn-active text-white hover:opacity-90"
                         }`}
                       >
                         {u.approved ? "Cabut akses" : "Setujui"}
@@ -161,7 +161,7 @@ export default function AccessSettings() {
             <button
               disabled={busy === "allowlist" || !data}
               onClick={saveAllowlist}
-              className="rounded bg-accent px-3 py-1.5 text-xs font-semibold text-white hover:opacity-90 disabled:opacity-50"
+              className="rounded btn-active px-3 py-1.5 text-xs font-semibold text-white hover:opacity-90 disabled:opacity-50"
             >
               Simpan daftar
             </button>

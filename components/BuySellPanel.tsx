@@ -54,22 +54,22 @@ function SignalChart({ candles, chartKey }: { candles: Candle[]; chartKey: strin
     if (!el) return;
     const chart = createChart(el, {
       autoSize: true,
-      layout: { background: { color: "transparent" }, textColor: "#787b86", fontSize: 11 },
-      grid: { vertLines: { color: "#1e222d" }, horzLines: { color: "#1e222d" } },
-      rightPriceScale: { borderColor: "#2a2e39", scaleMargins: { top: 0.05, bottom: 0.3 } },
-      timeScale: { borderColor: "#2a2e39", timeVisible: true, secondsVisible: false },
+      layout: { background: { color: "transparent" }, textColor: "#8f95c9", fontSize: 11 },
+      grid: { vertLines: { color: "rgba(132,140,255,0.08)" }, horzLines: { color: "rgba(132,140,255,0.08)" } },
+      rightPriceScale: { borderColor: "rgba(132,140,255,0.25)", scaleMargins: { top: 0.05, bottom: 0.3 } },
+      timeScale: { borderColor: "rgba(132,140,255,0.25)", timeVisible: true, secondsVisible: false },
     });
     const price = chart.addSeries(CandlestickSeries, {
-      upColor: "#26a69a",
-      downColor: "#ef5350",
-      wickUpColor: "#26a69a",
-      wickDownColor: "#ef5350",
+      upColor: "#2ee59d",
+      downColor: "#ff5c7a",
+      wickUpColor: "#2ee59d",
+      wickDownColor: "#ff5c7a",
       borderVisible: false,
     });
     // Market-buy volume stacked under market-sell volume at the bottom of the chart.
     const volumeOptions = { priceFormat: { type: "volume" as const }, priceScaleId: "volume" };
-    const sellVolume = chart.addSeries(HistogramSeries, { ...volumeOptions, color: "#ef535080" });
-    const buyVolume = chart.addSeries(HistogramSeries, { ...volumeOptions, color: "#26a69a" });
+    const sellVolume = chart.addSeries(HistogramSeries, { ...volumeOptions, color: "#ff5c7a80" });
+    const buyVolume = chart.addSeries(HistogramSeries, { ...volumeOptions, color: "#2ee59d" });
     chart.priceScale("volume").applyOptions({ scaleMargins: { top: 0.78, bottom: 0 } });
     refs.current = {
       chart,
@@ -111,7 +111,7 @@ function SignalChart({ candles, chartKey }: { candles: Candle[]; chartKey: strin
         time: toTime(candles[sg.index]),
         position: sg.type === "beli" ? "belowBar" : "aboveBar",
         shape: sg.type === "beli" ? "arrowUp" : "arrowDown",
-        color: sg.type === "beli" ? "#26a69a" : "#ef5350",
+        color: sg.type === "beli" ? "#2ee59d" : "#ff5c7a",
         text: sg.type === "beli" ? "BELI" : "JUAL",
       }));
       r.markers.setMarkers(markers);

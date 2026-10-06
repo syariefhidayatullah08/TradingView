@@ -82,16 +82,16 @@ function MiniChart({
     if (!el) return;
     const chart = createChart(el, {
       autoSize: true,
-      layout: { background: { color: "transparent" }, textColor: "#787b86", fontSize: 11 },
-      grid: { vertLines: { color: "#1e222d" }, horzLines: { color: "#1e222d" } },
-      rightPriceScale: { borderColor: "#2a2e39" },
-      timeScale: { borderColor: "#2a2e39", timeVisible: true, secondsVisible: false },
+      layout: { background: { color: "transparent" }, textColor: "#8f95c9", fontSize: 11 },
+      grid: { vertLines: { color: "rgba(132,140,255,0.08)" }, horzLines: { color: "rgba(132,140,255,0.08)" } },
+      rightPriceScale: { borderColor: "rgba(132,140,255,0.25)" },
+      timeScale: { borderColor: "rgba(132,140,255,0.25)", timeVisible: true, secondsVisible: false },
     });
     const series = chart.addSeries(CandlestickSeries, {
-      upColor: "#26a69a",
-      downColor: "#ef5350",
-      wickUpColor: "#26a69a",
-      wickDownColor: "#ef5350",
+      upColor: "#2ee59d",
+      downColor: "#ff5c7a",
+      wickUpColor: "#2ee59d",
+      wickDownColor: "#ff5c7a",
       borderVisible: false,
     });
     refs.current = { chart, series, markers: createSeriesMarkers(series, []), lastSignalTime: -1, loaded: false };
@@ -123,7 +123,7 @@ function MiniChart({
         time: toTime(candles[sg.index]),
         position: sg.type === "beli" ? "belowBar" : "aboveBar",
         shape: sg.type === "beli" ? "arrowUp" : "arrowDown",
-        color: sg.type === "beli" ? "#26a69a" : "#ef5350",
+        color: sg.type === "beli" ? "#2ee59d" : "#ff5c7a",
         text: sg.type === "beli" ? "BELI" : "JUAL",
       }));
       r.markers.setMarkers(markers);
@@ -220,7 +220,7 @@ export default function RealtimeCharts({
               key={n}
               onClick={() => setCount(n)}
               className={`rounded px-2 py-1 font-medium ${
-                count === n ? "bg-accent text-white" : "bg-panel text-muted hover:text-fg"
+                count === n ? "btn-active text-white" : "bg-panel text-muted hover:text-fg"
               }`}
             >
               {n === COINS.length ? `Semua (${n})` : `${n} koin`}

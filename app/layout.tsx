@@ -34,7 +34,10 @@ export default function RootLayout({ children }: LayoutProps<"/">) {
       <body className="min-h-full flex flex-col font-sans">
         <ClerkProvider
           localization={idID}
-          appearance={{ theme: dark }}
+          appearance={{
+            theme: dark,
+            variables: { colorPrimary: "#7c5cff", colorBackground: "#151a3f", borderRadius: "12px" },
+          }}
           signInUrl="/sign-in"
           signUpUrl="/sign-up"
         >

@@ -61,7 +61,7 @@ export default function AnalysisPanel({ coin, timeframe }: { coin: Coin; timefra
           </div>
 
           <div>
-            <div className="relative h-2 rounded-full bg-gradient-to-r from-down via-neutral-500 to-up">
+            <div className="relative h-2 rounded-full bg-gradient-to-r from-down via-yellow-400 to-up">
               <div
                 className="absolute top-1/2 h-4 w-1.5 -translate-x-1/2 -translate-y-1/2 rounded bg-white shadow"
                 style={{ left: `${((analysis.score + 1) / 2) * 100}%` }}

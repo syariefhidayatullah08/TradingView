@@ -80,7 +80,7 @@ export default function NewsPanel() {
               key={tab.id}
               onClick={() => setCat(tab.id)}
               className={`rounded px-2.5 py-1 text-xs font-medium ${
-                cat === tab.id ? "bg-accent text-white" : "bg-base text-muted hover:text-fg"
+                cat === tab.id ? "btn-active text-white" : "bg-base text-muted hover:text-fg"
               }`}
             >
               {tab.label}
