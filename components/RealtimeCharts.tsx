@@ -1,10 +1,17 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
-import { CandlestickSeries, createChart, type UTCTimestamp } from "lightweight-charts";
+import {
+  CandlestickSeries,
+  createChart,
+  createSeriesMarkers,
+  type SeriesMarker,
+  type UTCTimestamp,
+} from "lightweight-charts";
 import { fetchCandles } from "@/lib/candles";
 import type { Candle, Signal } from "@/lib/indicators";
 import { outlook } from "@/lib/outlook";
+import { detectSignals, type TradeSignal } from "@/lib/signals";
 import {
   BINANCE_WS,
   COINS,
@@ -26,6 +33,7 @@ type Quote = {
   price?: number;
   changePct?: number;
   direction?: Direction | null;
+  lastSignal?: TradeSignal | null;
   live?: boolean;
   error?: boolean;
 };
@@ -36,6 +44,20 @@ const toneClass: Record<Signal, string> = {
   [-1]: "bg-down/15 text-down",
 };
 const arrow: Record<Signal, string> = { 1: "▲", 0: "◆", [-1]: "▼" };
+
+function sinceLabel(time: number): string {
+  const minutes = Math.round((Date.now() - time) / 60_000);
+  if (minutes < 60) return `${minutes} mnt lalu`;
+  const hours = Math.round(minutes / 60);
+  if (hours < 48) return `${hours} jam lalu`;
+  return `${Math.round(hours / 24)} hari lalu`;
+}
+
+function sincePct(signal: TradeSignal, price: number | undefined): string {
+  if (price === undefined) return "";
+  const pct = ((price - signal.price) / signal.price) * 100;
+  return `${pct >= 0 ? "+" : ""}${pct.toFixed(2)}% sejak sinyal`;
+}
 
 function directionOf(candles: Candle[]): Direction | null {
   const o = outlook(candles, 1);
@@ -90,6 +112,26 @@ function MiniChart({
     let ws: WebSocket | null = null;
     let retry: ReturnType<typeof setTimeout> | undefined;
     let candles: Candle[] = [];
+    const markers = createSeriesMarkers(series, []);
+    let lastSignalTime = -1;
+
+    // Redraw buy/sell arrows only when a new signal appears, and report the latest one.
+    function updateSignals(): TradeSignal | null {
+      const signals = detectSignals(candles);
+      const last = signals[signals.length - 1] ?? null;
+      if ((last?.time ?? 0) !== lastSignalTime) {
+        lastSignalTime = last?.time ?? 0;
+        const list: SeriesMarker<UTCTimestamp>[] = signals.map((sg) => ({
+          time: toBar(candles[sg.index]).time,
+          position: sg.type === "beli" ? "belowBar" : "aboveBar",
+          shape: sg.type === "beli" ? "arrowUp" : "arrowDown",
+          color: sg.type === "beli" ? "#26a69a" : "#ef5350",
+          text: sg.type === "beli" ? "BELI" : "JUAL",
+        }));
+        markers.setMarkers(list);
+      }
+      return last;
+    }
 
     function publish(live: boolean) {
       const price = candles[candles.length - 1].close;
@@ -99,6 +141,7 @@ function MiniChart({
         price,
         changePct: ((price - baseline) / baseline) * 100,
         direction: directionOf(candles),
+        lastSignal: updateSignals(),
         live,
       });
     }
@@ -209,6 +252,17 @@ function MiniChart({
             <span className="text-muted">
               {q.direction.tone === 0 ? "belum jelas" : `kekuatan sinyal ${q.direction.strength}%`}
             </span>
+            {q.lastSignal && (
+              <span
+                className={`rounded px-1.5 py-0.5 font-semibold ${
+                  q.lastSignal.type === "beli" ? "bg-up/15 text-up" : "bg-down/15 text-down"
+                }`}
+                title={q.lastSignal.reason}
+              >
+                {q.lastSignal.type === "beli" ? "▲ BELI" : "▼ JUAL"} {sinceLabel(q.lastSignal.time)} ·{" "}
+                {sincePct(q.lastSignal, q.price)}
+              </span>
+            )}
           </span>
         )}
       </button>
@@ -232,7 +286,7 @@ export default function RealtimeCharts({
     <div className="flex flex-col gap-2">
       <div className="flex flex-wrap items-center justify-between gap-2 px-1">
         <p className="text-xs text-muted">
-          Candle {timeframe.label} · harga dan arah diperbarui langsung dari Binance. Persentase =
+          Candle {timeframe.label} · harga, arah, dan sinyal ▲ beli / ▼ jual diperbarui langsung dari Binance. Persentase =
           perubahan sepanjang {HISTORY} candle. Klik judul untuk membuka di chart utama.
         </p>
         <div className="flex items-center gap-1 text-xs">
