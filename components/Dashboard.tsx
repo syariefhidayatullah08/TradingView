@@ -12,6 +12,7 @@ import MarketTable from "./MarketTable";
 import NewsPanel from "./NewsPanel";
 import RealtimeCharts from "./RealtimeCharts";
 import SettingsPanel from "./SettingsPanel";
+import SignalsOverview from "./SignalsOverview";
 import TokocryptoCard from "./TokocryptoCard";
 import TVWidget from "./TVWidget";
 import { COINS, TIMEFRAMES, type Coin, type Timeframe } from "@/lib/symbols";
@@ -44,6 +45,7 @@ const TABS = [
   { id: "ai", label: "Analisa AI" },
   { id: "realtime", label: "Chart Real-Time" },
   { id: "teknikal", label: "Analisa Teknikal" },
+  { id: "sinyal", label: "Sinyal Beli/Jual" },
   { id: "fundamental", label: "Analisa Fundamental" },
   { id: "berita", label: "Berita Dunia" },
   { id: "kalender", label: "Kalender Ekonomi" },
@@ -169,7 +171,12 @@ export default function Dashboard({ isOwner = false }: { isOwner?: boolean }) {
             <RealtimeCharts timeframe={timeframe} selected={coin.symbol} onSelect={setCoin} />
           )}
           {tab === "teknikal" && <MarketDirection coin={coin} />}
-          {tab === "teknikal" && <BuySellPanel coin={coin} timeframe={timeframe} />}
+          {tab === "sinyal" && (
+            <>
+              <SignalsOverview timeframe={timeframe} selected={coin.symbol} onSelect={setCoin} />
+              <BuySellPanel coin={coin} timeframe={timeframe} />
+            </>
+          )}
           {tab === "teknikal" && (
             <div className="grid gap-2 md:grid-cols-2">
               <AnalysisPanel coin={coin} timeframe={timeframe} />
