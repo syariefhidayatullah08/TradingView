@@ -1,6 +1,6 @@
 "use client";
 
-import { buildReport, tradeResult, type ClosedTrade } from "@/lib/positions";
+import { buildReport, tradeResult, weeklyReport, type ClosedTrade } from "@/lib/positions";
 import { COINS, formatPrice } from "@/lib/symbols";
 
 function when(time: number): string {
@@ -23,6 +23,7 @@ export default function TradeReport({
   onClear: () => void;
 }) {
   const report = buildReport(trades);
+  const weeks = weeklyReport(trades);
   const winRate = report.wins + report.losses ? Math.round((report.wins / (report.wins + report.losses)) * 100) : null;
 
   return (
@@ -66,6 +67,52 @@ export default function TradeReport({
             Nilai dolar hanya dihitung dari {report.valued} transaksi yang mencantumkan jumlah koin; sisanya hanya
             masuk hitungan persentase.
           </p>
+        )}
+
+        {weeks.length > 0 && (
+          <div>
+            <div className="mb-1.5 text-[11px] uppercase tracking-wide text-muted">Untung rugi per minggu</div>
+            <div className="overflow-x-auto">
+              <table className="w-full text-xs">
+                <thead>
+                  <tr className="text-[11px] uppercase tracking-wide text-muted">
+                    <th className="px-2 py-2 text-left font-medium">Minggu</th>
+                    <th className="px-2 py-2 text-right font-medium">Transaksi</th>
+                    <th className="px-2 py-2 text-right font-medium">Menang / kalah</th>
+                    <th className="px-2 py-2 text-right font-medium">Hasil %</th>
+                    <th className="px-2 py-2 text-right font-medium">Hasil USD</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {weeks.map((w) => {
+                    const end = new Date(w.weekStart + 6 * 86_400_000);
+                    const label = `${new Date(w.weekStart).toLocaleDateString("id-ID", { day: "numeric", month: "short" })} – ${end.toLocaleDateString("id-ID", { day: "numeric", month: "short", year: "numeric" })}`;
+                    const up = w.pct >= 0;
+                    return (
+                      <tr key={w.weekStart} className="border-t border-line">
+                        <td className="px-2 py-1.5">{label}</td>
+                        <td className="px-2 py-1.5 text-right font-mono">{w.count}</td>
+                        <td className="px-2 py-1.5 text-right font-mono">
+                          <span className="text-up">{w.wins}</span> / <span className="text-down">{w.losses}</span>
+                        </td>
+                        <td className={`px-2 py-1.5 text-right font-mono font-semibold ${up ? "text-up" : "text-down"}`}>
+                          {up ? "+" : ""}
+                          {w.pct.toFixed(2)}%
+                        </td>
+                        <td className={`px-2 py-1.5 text-right font-mono font-semibold ${w.net >= 0 ? "text-up" : "text-down"}`}>
+                          {w.capital > 0 ? usd(w.net) : "—"}
+                        </td>
+                      </tr>
+                    );
+                  })}
+                </tbody>
+              </table>
+            </div>
+            <p className="mt-1 text-[11px] text-muted">
+              Dikelompokkan menurut minggu penjualan (Senin–Minggu). Hasil % = untung bersih dibagi modal yang
+              dipakai minggu itu; untuk transaksi tanpa jumlah koin dipakai rata-rata % per transaksi.
+            </p>
+          </div>
         )}
 
         {trades.length === 0 ? (

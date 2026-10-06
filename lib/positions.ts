@@ -307,3 +307,62 @@ export function buildReport(trades: ClosedTrade[]): Report {
     valued,
   };
 }
+
+export type WeekSummary = {
+  // Monday 00:00 local time of the week, in ms.
+  weekStart: number;
+  count: number;
+  wins: number;
+  losses: number;
+  // USDT result and the capital it was earned on, over trades that recorded an amount.
+  net: number;
+  capital: number;
+  // Net USDT / capital when amounts exist, otherwise the average % per trade.
+  pct: number;
+};
+
+function mondayOf(time: number): number {
+  const d = new Date(time);
+  d.setHours(0, 0, 0, 0);
+  d.setDate(d.getDate() - ((d.getDay() + 6) % 7));
+  return d.getTime();
+}
+
+// Results grouped by the week the trade was sold in, newest week first.
+export function weeklyReport(trades: ClosedTrade[]): WeekSummary[] {
+  const weeks = new Map<number, { trades: ClosedTrade[] }>();
+  for (const t of trades) {
+    const key = mondayOf(t.exitTime);
+    const w = weeks.get(key) ?? { trades: [] };
+    w.trades.push(t);
+    weeks.set(key, w);
+  }
+  return [...weeks.entries()]
+    .map(([weekStart, { trades: list }]) => {
+      let net = 0;
+      let capital = 0;
+      let pctSum = 0;
+      let wins = 0;
+      let losses = 0;
+      for (const t of list) {
+        const r = tradeResult(t);
+        pctSum += r.pnlPct;
+        if (r.pnlPct > 0) wins++;
+        else if (r.pnlPct < 0) losses++;
+        if (r.pnlValue !== null && t.amount !== null) {
+          net += r.pnlValue;
+          capital += t.entryPrice * t.amount;
+        }
+      }
+      return {
+        weekStart,
+        count: list.length,
+        wins,
+        losses,
+        net,
+        capital,
+        pct: capital > 0 ? (net / capital) * 100 : pctSum / list.length,
+      };
+    })
+    .sort((a, b) => b.weekStart - a.weekStart);
+}
