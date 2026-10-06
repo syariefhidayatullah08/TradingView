@@ -1,8 +1,12 @@
 import type { NextRequest } from "next/server";
+import { denyUnlessAllowed } from "@/lib/access";
 import { COINS } from "@/lib/symbols";
 
 // Best bid/ask of the coin's IDR pair on Tokocrypto.
 export async function GET(request: NextRequest) {
+  const denied = await denyUnlessAllowed();
+  if (denied) return denied;
+
   const base = request.nextUrl.searchParams.get("base");
   const coin = COINS.find((c) => c.base === base);
   if (!coin || !coin.tokoIdr) {

@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { UserButton } from "@clerk/nextjs";
+import Link from "next/link";
 import AiAnalysisPanel from "./AiAnalysisPanel";
 import AnalysisPanel from "./AnalysisPanel";
 import CoinSentiment from "./CoinSentiment";
@@ -49,7 +50,7 @@ const TABS = [
 
 type TabId = (typeof TABS)[number]["id"];
 
-export default function Dashboard() {
+export default function Dashboard({ isOwner = false }: { isOwner?: boolean }) {
   const [coin, setCoin] = useState<Coin>(COINS[0]);
   const [timeframe, setTimeframe] = useState<Timeframe>(TIMEFRAMES[1]);
   const [tab, setTab] = useState<TabId>("ai");
@@ -98,6 +99,11 @@ export default function Dashboard() {
         <div className="min-w-0 flex-1 basis-80 overflow-hidden">
           <TVWidget script="ticker-tape" config={TICKER_CONFIG} height={46} />
         </div>
+        {isOwner && (
+          <Link href="/admin" className="rounded border border-line px-2.5 py-1.5 text-xs font-medium hover:bg-base">
+            Kelola akses
+          </Link>
+        )}
         <UserButton />
       </header>
 

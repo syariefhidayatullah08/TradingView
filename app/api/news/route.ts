@@ -1,7 +1,11 @@
 import type { NextRequest } from "next/server";
+import { denyUnlessAllowed } from "@/lib/access";
 import { getNews, isNewsCategory } from "@/lib/news";
 
 export async function GET(request: NextRequest) {
+  const denied = await denyUnlessAllowed();
+  if (denied) return denied;
+
   const cat = request.nextUrl.searchParams.get("cat") ?? "ekonomi";
   if (!isNewsCategory(cat)) {
     return Response.json({ error: "Kategori tidak dikenal" }, { status: 400 });

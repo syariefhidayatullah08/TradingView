@@ -1,10 +1,14 @@
 import type { NextRequest } from "next/server";
+import { denyUnlessAllowed } from "@/lib/access";
 import { getAiAnalysis } from "@/lib/ai-analysis";
 import { COINS } from "@/lib/symbols";
 
 export const maxDuration = 120;
 
 export async function GET(request: NextRequest) {
+  const denied = await denyUnlessAllowed();
+  if (denied) return denied;
+
   const symbol = request.nextUrl.searchParams.get("symbol");
   const coin = COINS.find((c) => c.symbol === symbol);
   if (!coin) {
