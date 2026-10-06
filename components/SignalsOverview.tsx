@@ -134,7 +134,8 @@ export default function SignalsOverview({
         </div>
       )}
       <p className="px-4 py-2 text-[11px] text-muted">
-        "Sejak sinyal" hijau berarti harga bergerak searah sinyal terakhir. "Beli untung" = pasangan beli→jual
+        &ldquo;Sejak sinyal&rdquo; hijau berarti harga bergerak searah sinyal terakhir. &ldquo;Beli untung&rdquo; =
+        pasangan beli→jual
         yang berakhir untung dari {HISTORY} candle terakhir, tanpa biaya transaksi.
       </p>
     </section>
