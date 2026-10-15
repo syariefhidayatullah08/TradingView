@@ -23,6 +23,7 @@ import TokocryptoCard from "./TokocryptoCard";
 import TradeAlerts from "./TradeAlerts";
 import ThemeSwitcher from "./ThemeSwitcher";
 import TVWidget from "./TVWidget";
+import { useEvidence } from "@/lib/evidence";
 import { useAlertsEnabled } from "@/lib/notify";
 import { SANTAI_TIMEFRAME } from "@/lib/santai";
 import { useScan } from "@/lib/scan";
@@ -80,6 +81,8 @@ export default function Dashboard({ isOwner = false }: { isOwner?: boolean }) {
   const alertsOn = useAlertsEnabled();
   const santai = useSantai();
   const chartBg = themeInfo(useTheme()).chartBg;
+  // Backtest every coin in the background (cached daily) so advice can skip unproven coins.
+  useEvidence(timeframe, santai.settings, santai.loaded && santai.settings.evidenceOnly);
   // Once the saved settings arrive, open on Mode Santai's 4h candle if it is on.
   const [santaiApplied, setSantaiApplied] = useState(false);
   if (santai.loaded && !santaiApplied) {

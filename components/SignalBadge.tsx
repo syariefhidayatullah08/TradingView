@@ -2,6 +2,7 @@
 
 import { advise, MARKET_INTERVAL, MARKET_SYMBOL } from "@/lib/advice";
 import type { Action } from "@/lib/decision";
+import { useEvidence } from "@/lib/evidence";
 import { useLiveCandles } from "@/lib/live-candles";
 import { SANTAI_COINS } from "@/lib/santai";
 import { useSantai } from "@/lib/use-santai";
@@ -20,6 +21,7 @@ export default function SignalBadge({ symbol, timeframe }: { symbol: string; tim
   const higher = useLiveCandles(symbol, (higherTf ?? timeframe).binance);
   const btc = useLiveCandles(MARKET_SYMBOL, MARKET_INTERVAL);
   const { settings } = useSantai();
+  const evidence = useEvidence(timeframe, settings, false).results[symbol] ?? null;
   if (settings.enabled && !SANTAI_COINS.includes(symbol)) {
     return (
       <span title="Mode Santai hanya BTC, ETH, dan BNB" className="text-[11px] text-muted">
@@ -28,7 +30,7 @@ export default function SignalBadge({ symbol, timeframe }: { symbol: string; tim
     );
   }
   if (!live.candles || live.candles.length <= 60) return <span className="text-[11px] text-muted">…</span>;
-  const d = advise(live.candles, higherTf ? higher.candles : null, higherTf?.label ?? null, symbol, settings, btc.candles);
+  const d = advise(live.candles, higherTf ? higher.candles : null, higherTf?.label ?? null, symbol, settings, btc.candles, null, evidence);
   if (!d) return <span className="text-[11px] text-muted">—</span>;
   return (
     <span title={d.headline} className="inline-flex flex-col items-end">

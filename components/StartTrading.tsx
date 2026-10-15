@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { advise, MARKET_INTERVAL, MARKET_SYMBOL } from "@/lib/advice";
+import { useEvidence } from "@/lib/evidence";
 import type { Action } from "@/lib/decision";
 import { useLiveCandles } from "@/lib/live-candles";
 import { netTargetPrice, type ClosedTrade, type Mood, type Position } from "@/lib/positions";
@@ -58,12 +59,13 @@ function TradingDecision({ coin, timeframe, onClose }: { coin: Coin; timeframe: 
     };
   }, []);
 
+  const evidence = useEvidence(timeframe, santai, false).results[coin.symbol] ?? null;
   const capitalUsdt = idrPerUsdt ? santai.capitalIdr / idrPerUsdt : null;
   // Weekly loss brake from the risk manager.
   const lock = trades && capitalUsdt ? weeklyLock(trades, capitalUsdt, santai, loadedAt) : null;
   const advised =
     live.candles && live.candles.length > 60
-      ? advise(live.candles, higherTf ? higher.candles : null, higherTf?.label ?? null, coin.symbol, santai, btc.candles, open)
+      ? advise(live.candles, higherTf ? higher.candles : null, higherTf?.label ?? null, coin.symbol, santai, btc.candles, open, evidence)
       : null;
   const decision = advised && applyLock(advised, lock);
   // Mode Santai sizing: one equal part of the budget, sold at a fixed net profit.

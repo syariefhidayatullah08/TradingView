@@ -3,6 +3,7 @@
 import { useEffect, useState } from "react";
 import { advise, MARKET_INTERVAL, MARKET_SYMBOL } from "./advice";
 import type { Decision } from "./decision";
+import { getEvidence } from "./evidence";
 import { getLive, subscribeLive } from "./live-candles";
 import { getSantai } from "./use-santai";
 import { COINS, higherTimeframe, type Coin, type Timeframe } from "./symbols";
@@ -17,12 +18,13 @@ const noop = () => {};
 function scanOnce(timeframe: Timeframe): ScanRow[] {
   const higher = higherTimeframe(timeframe);
   const btcDaily = getLive(MARKET_SYMBOL, MARKET_INTERVAL).candles;
+  const settings = getSantai();
   return COINS.map((coin) => {
     const live = getLive(coin.symbol, timeframe.binance);
     const big = higher ? getLive(coin.symbol, higher.binance).candles : null;
     const decision =
       live.candles && live.candles.length > 60
-        ? advise(live.candles, big, higher?.label ?? null, coin.symbol, getSantai(), btcDaily)
+        ? advise(live.candles, big, higher?.label ?? null, coin.symbol, settings, btcDaily, null, getEvidence(timeframe, settings, coin.symbol))
         : null;
     return { coin, interval: timeframe.binance, decision, live: live.live, error: live.error };
   });

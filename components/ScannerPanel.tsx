@@ -4,6 +4,7 @@ import type { Action } from "@/lib/decision";
 import { SANTAI_COINS } from "@/lib/santai";
 import type { ScanRow } from "@/lib/scan";
 import { useSantai } from "@/lib/use-santai";
+import { useEvidence } from "@/lib/evidence";
 import { formatPrice, higherTimeframe, type Coin, type Timeframe } from "@/lib/symbols";
 
 const actionStyle: Record<Action, { text: string; label: string; order: number }> = {
@@ -33,6 +34,7 @@ export default function ScannerPanel({
   onSelect: (coin: Coin) => void;
 }) {
   const { settings } = useSantai();
+  const evidence = useEvidence(timeframe, settings, true);
   // Mode Santai trades only its few coins, so the others are noise here.
   const shown = settings.enabled ? rows?.filter((r) => SANTAI_COINS.includes(r.coin.symbol)) : rows;
   const sorted = shown ? [...shown].sort(rank) : null;
@@ -50,6 +52,11 @@ export default function ScannerPanel({
       </header>
 
       {!sorted && <p className="p-4 text-sm text-muted">Memindai koin…</p>}
+      {evidence.running && (
+        <p className="px-4 pt-3 text-xs text-muted">
+          Menguji riwayat setiap koin di latar belakang… {evidence.done}/{evidence.total} (sekali sehari, lalu disimpan)
+        </p>
+      )}
       {settings.enabled && (
         <p className="px-4 pt-3 text-xs text-muted">
           🌿 Mode Santai aktif: hanya BTC, ETH, dan BNB, dengan keyakinan minimal 50%.
@@ -76,6 +83,7 @@ export default function ScannerPanel({
                   <th className="px-2 py-2 text-left font-medium">Keputusan</th>
                   <th className="px-2 py-2 text-left font-medium">Keyakinan</th>
                   <th className="px-2 py-2 text-left font-medium">Alasan utama</th>
+                  <th className="px-2 py-2 text-right font-medium" title="Hasil strategi di 1000 candle terakhir, setelah biaya">Uji 1000 candle</th>
                   <th className="px-2 py-2 text-right font-medium">Stop loss</th>
                   <th className="px-3 py-2 text-right font-medium">Target 1</th>
                 </tr>
@@ -122,6 +130,16 @@ export default function ScannerPanel({
                         <td className="max-w-72 truncate px-2 py-1.5 text-muted" title={decision.headline}>
                           {decision.headline.replace(/^[^:]+:\s*/, "")}
                         </td>
+                        <td className="px-2 py-1.5 text-right font-mono">
+                          {evidence.results[coin.symbol] ? (
+                            <span className={evidence.results[coin.symbol].totalPct > 0 ? "text-up" : "text-down"}>
+                              {evidence.results[coin.symbol].totalPct > 0 ? "+" : ""}
+                              {evidence.results[coin.symbol].totalPct.toFixed(1)}%
+                            </span>
+                          ) : (
+                            <span className="text-muted">…</span>
+                          )}
+                        </td>
                         <td className="px-2 py-1.5 text-right font-mono text-down">
                           {decision.plan ? `$${formatPrice(decision.plan.stop)}` : "—"}
                         </td>
@@ -130,7 +148,7 @@ export default function ScannerPanel({
                         </td>
                       </>
                     ) : (
-                      <td colSpan={6} className={`px-2 py-1.5 ${error ? "text-down" : "text-muted"}`}>
+                      <td colSpan={7} className={`px-2 py-1.5 ${error ? "text-down" : "text-muted"}`}>
                         {error ? "Data gagal dimuat, mencoba lagi…" : "Memuat…"}
                       </td>
                     )}

@@ -163,7 +163,12 @@ export default function SantaiSettingsPanel() {
   );
 }
 
-const STRATEGY: { key: "trailing" | "sensitive" | "btcFilter"; label: string; hint: string }[] = [
+const STRATEGY: { key: "trailing" | "evidenceOnly" | "sensitive" | "btcFilter"; label: string; hint: string }[] = [
+  {
+    key: "evidenceOnly",
+    label: "Hanya BELI di koin yang terbukti",
+    hint: "Setiap hari aplikasi menguji strategi di 1000 candle terakhir tiap koin. Koin yang hasilnya rugi tidak disarankan BELI.",
+  },
   {
     key: "trailing",
     label: "Trailing stop setelah target",
