@@ -3,10 +3,12 @@
 import { UserProfile } from "@clerk/nextjs";
 import AccessSettings from "./AccessSettings";
 import SantaiSettingsPanel, { RiskSettingsPanel, StrategySettings } from "./SantaiSettings";
+import TelegramSettings from "./TelegramSettings";
 
 export default function SettingsPanel({ isOwner }: { isOwner: boolean }) {
   return (
     <div className="flex flex-col gap-3">
+      <TelegramSettings />
       <StrategySettings />
       <RiskSettingsPanel />
       <SantaiSettingsPanel />

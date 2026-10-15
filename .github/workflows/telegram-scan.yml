@@ -1,0 +1,19 @@
+name: Telegram alerts
+
+# Runs the server scan that sends KriptoScope alerts to Telegram. Needs the repository
+# secret CRON_SECRET to match the CRON_SECRET environment variable on Vercel.
+on:
+  schedule:
+    - cron: "*/15 * * * *"
+  workflow_dispatch:
+
+jobs:
+  scan:
+    runs-on: ubuntu-latest
+    timeout-minutes: 6
+    steps:
+      - name: Trigger scan
+        env:
+          CRON_SECRET: ${{ secrets.CRON_SECRET }}
+        run: |
+          curl -fsS --max-time 300 -H "Authorization: Bearer $CRON_SECRET" https://kriptoscope.vercel.app/api/cron/scan

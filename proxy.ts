@@ -1,8 +1,9 @@
 import { clerkMiddleware, createRouteMatcher } from "@clerk/nextjs/server";
 
-const isPublicRoute = createRouteMatcher(["/sign-in(.*)", "/sign-up(.*)"]);
+// Telegram webhook and the scheduled scan authenticate with their own secrets.
+const isPublicRoute = createRouteMatcher(["/sign-in(.*)", "/sign-up(.*)", "/api/telegram/webhook", "/api/cron/(.*)"]);
 
-// Everything except the sign-in and sign-up pages requires a logged-in user.
+// Everything else requires a logged-in user.
 export default clerkMiddleware(
   async (auth, req) => {
     if (!isPublicRoute(req)) await auth.protect();
