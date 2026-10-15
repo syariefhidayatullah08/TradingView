@@ -4,7 +4,7 @@ import { useEffect, useState } from "react";
 import { decide, type Action } from "@/lib/decision";
 import { useLiveCandles } from "@/lib/live-candles";
 import type { Position } from "@/lib/positions";
-import { formatPrice, TIMEFRAMES, tokocryptoUrl, type Coin, type Timeframe } from "@/lib/symbols";
+import { formatPrice, higherTimeframe, tokocryptoUrl, type Coin, type Timeframe } from "@/lib/symbols";
 
 const actionStyle: Record<Action, { box: string; title: string; label: string }> = {
   beli: { box: "border-up/50 bg-up/10", title: "text-up", label: "▲ BELI SEKARANG" },
@@ -22,7 +22,7 @@ function stampNew(): { id: string; entryTime: number } {
 }
 
 function TradingDecision({ coin, timeframe, onClose }: { coin: Coin; timeframe: Timeframe; onClose: () => void }) {
-  const higherTf = TIMEFRAMES[TIMEFRAMES.findIndex((t) => t.tv === timeframe.tv) + 1] ?? null;
+  const higherTf = higherTimeframe(timeframe);
   const live = useLiveCandles(coin.symbol, timeframe.binance);
   // Subscribing to the same interval twice is harmless when there is no higher timeframe.
   const higher = useLiveCandles(coin.symbol, (higherTf ?? timeframe).binance);

@@ -45,6 +45,11 @@ export const TIMEFRAMES = [
 
 export type Timeframe = (typeof TIMEFRAMES)[number];
 
+// The next larger timeframe, used to confirm the bigger trend; null for the largest.
+export function higherTimeframe(tf: Timeframe): Timeframe | null {
+  return TIMEFRAMES[TIMEFRAMES.findIndex((t) => t.tv === tf.tv) + 1] ?? null;
+}
+
 export const BINANCE_API = "https://data-api.binance.vision/api/v3";
 export const COINGECKO_API = "https://api.coingecko.com/api/v3";
 

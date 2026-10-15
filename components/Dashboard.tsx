@@ -12,11 +12,15 @@ import MarketTable from "./MarketTable";
 import NewsPanel from "./NewsPanel";
 import PositionsPanel from "./PositionsPanel";
 import RealtimeCharts from "./RealtimeCharts";
+import ScannerPanel from "./ScannerPanel";
 import SettingsPanel from "./SettingsPanel";
 import SignalsOverview from "./SignalsOverview";
 import StartTrading from "./StartTrading";
 import TokocryptoCard from "./TokocryptoCard";
+import TradeAlerts from "./TradeAlerts";
 import TVWidget from "./TVWidget";
+import { useAlertsEnabled } from "@/lib/notify";
+import { useScan } from "@/lib/scan";
 import { COINS, TIMEFRAMES, type Coin, type Timeframe } from "@/lib/symbols";
 
 const TICKER_CONFIG = {
@@ -45,6 +49,7 @@ const CALENDAR_CONFIG = {
 
 const TABS = [
   { id: "ai", label: "Analisa AI" },
+  { id: "pemindai", label: "Pemindai Trading" },
   { id: "realtime", label: "Chart Real-Time" },
   { id: "teknikal", label: "Analisa Teknikal" },
   { id: "sinyal", label: "Sinyal Beli/Jual" },
@@ -62,6 +67,9 @@ export default function Dashboard({ isOwner = false }: { isOwner?: boolean }) {
   const [timeframe, setTimeframe] = useState<Timeframe>(TIMEFRAMES[1]);
   const [tab, setTab] = useState<TabId>("ai");
   const [fullscreen, setFullscreen] = useState(false);
+  const alertsOn = useAlertsEnabled();
+  // Scan every coin only while someone looks at the scanner or alerts need it.
+  const scan = useScan(timeframe, tab === "pemindai" || alertsOn);
 
   useEffect(() => {
     if (!fullscreen) return;
@@ -106,6 +114,7 @@ export default function Dashboard({ isOwner = false }: { isOwner?: boolean }) {
         <div className="min-w-0 flex-1 basis-80 overflow-hidden">
           <TVWidget script="ticker-tape" config={TICKER_CONFIG} height={46} />
         </div>
+        <TradeAlerts rows={scan} timeframe={timeframe} />
         <button
           onClick={() => setTab("pengaturan")}
           className="rounded border border-line px-2.5 py-1.5 text-xs font-medium hover:bg-base"
@@ -175,6 +184,9 @@ export default function Dashboard({ isOwner = false }: { isOwner?: boolean }) {
           </nav>
 
           {tab === "ai" && <AiAnalysisPanel coin={coin} />}
+          {tab === "pemindai" && (
+            <ScannerPanel rows={scan} timeframe={timeframe} selected={coin.symbol} onSelect={setCoin} />
+          )}
           {tab === "realtime" && (
             <RealtimeCharts timeframe={timeframe} selected={coin.symbol} onSelect={setCoin} />
           )}
