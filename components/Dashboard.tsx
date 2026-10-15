@@ -14,6 +14,7 @@ import PositionsPanel from "./PositionsPanel";
 import RealtimeCharts from "./RealtimeCharts";
 import SettingsPanel from "./SettingsPanel";
 import SignalsOverview from "./SignalsOverview";
+import StartTrading from "./StartTrading";
 import TokocryptoCard from "./TokocryptoCard";
 import TVWidget from "./TVWidget";
 import { COINS, TIMEFRAMES, type Coin, type Timeframe } from "@/lib/symbols";
@@ -124,12 +125,15 @@ export default function Dashboard({ isOwner = false }: { isOwner?: boolean }) {
           <span className="text-sm font-semibold">
             {coin.base}/USDT <span className="font-normal text-muted">· {coin.name}</span>
           </span>
-          <button
-            onClick={() => setFullscreen((f) => !f)}
-            className="rounded border border-line px-2.5 py-1 text-xs font-medium hover:bg-base"
-          >
-            {fullscreen ? "✕ Tutup layar penuh (Esc)" : "⛶ Layar penuh"}
-          </button>
+          <div className="flex items-center gap-2">
+            <StartTrading coin={coin} timeframe={timeframe} />
+            <button
+              onClick={() => setFullscreen((f) => !f)}
+              className="rounded border border-line px-2.5 py-1 text-xs font-medium hover:bg-base"
+            >
+              {fullscreen ? "✕ Tutup layar penuh (Esc)" : "⛶ Layar penuh"}
+            </button>
+          </div>
         </div>
         <div className="min-h-0 flex-1">
           <TVWidget
