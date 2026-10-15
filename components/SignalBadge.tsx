@@ -1,8 +1,9 @@
 "use client";
 
-import { decide, type Action } from "@/lib/decision";
+import { advise, MARKET_INTERVAL, MARKET_SYMBOL } from "@/lib/advice";
+import type { Action } from "@/lib/decision";
 import { useLiveCandles } from "@/lib/live-candles";
-import { applySantai, SANTAI_COINS } from "@/lib/santai";
+import { SANTAI_COINS } from "@/lib/santai";
 import { useSantai } from "@/lib/use-santai";
 import { higherTimeframe, type Timeframe } from "@/lib/symbols";
 
@@ -17,6 +18,7 @@ export default function SignalBadge({ symbol, timeframe }: { symbol: string; tim
   const higherTf = higherTimeframe(timeframe);
   const live = useLiveCandles(symbol, timeframe.binance);
   const higher = useLiveCandles(symbol, (higherTf ?? timeframe).binance);
+  const btc = useLiveCandles(MARKET_SYMBOL, MARKET_INTERVAL);
   const { settings } = useSantai();
   if (settings.enabled && !SANTAI_COINS.includes(symbol)) {
     return (
@@ -26,8 +28,7 @@ export default function SignalBadge({ symbol, timeframe }: { symbol: string; tim
     );
   }
   if (!live.candles || live.candles.length <= 60) return <span className="text-[11px] text-muted">…</span>;
-  const raw = decide(live.candles, higherTf ? higher.candles : null, higherTf?.label ?? null);
-  const d = raw && applySantai(raw, symbol, settings);
+  const d = advise(live.candles, higherTf ? higher.candles : null, higherTf?.label ?? null, symbol, settings, btc.candles);
   if (!d) return <span className="text-[11px] text-muted">—</span>;
   return (
     <span title={d.headline} className="inline-flex flex-col items-end">

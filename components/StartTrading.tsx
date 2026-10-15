@@ -1,10 +1,11 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { decide, type Action } from "@/lib/decision";
+import { advise, MARKET_INTERVAL, MARKET_SYMBOL } from "@/lib/advice";
+import type { Action } from "@/lib/decision";
 import { useLiveCandles } from "@/lib/live-candles";
 import { netTargetPrice, type Position } from "@/lib/positions";
-import { applySantai, partUsdt } from "@/lib/santai";
+import { partUsdt } from "@/lib/santai";
 import { useSantai } from "@/lib/use-santai";
 import { formatPrice, higherTimeframe, tokocryptoUrl, type Coin, type Timeframe } from "@/lib/symbols";
 
@@ -28,6 +29,7 @@ function TradingDecision({ coin, timeframe, onClose }: { coin: Coin; timeframe: 
   const live = useLiveCandles(coin.symbol, timeframe.binance);
   // Subscribing to the same interval twice is harmless when there is no higher timeframe.
   const higher = useLiveCandles(coin.symbol, (higherTf ?? timeframe).binance);
+  const btc = useLiveCandles(MARKET_SYMBOL, MARKET_INTERVAL);
   const [amount, setAmount] = useState("");
   const [save, setSave] = useState<SaveState>("idle");
   const [saveError, setSaveError] = useState("");
@@ -48,11 +50,10 @@ function TradingDecision({ coin, timeframe, onClose }: { coin: Coin; timeframe: 
     };
   }, []);
 
-  const raw =
+  const decision =
     live.candles && live.candles.length > 60
-      ? decide(live.candles, higherTf ? higher.candles : null, higherTf?.label ?? null)
+      ? advise(live.candles, higherTf ? higher.candles : null, higherTf?.label ?? null, coin.symbol, santai, btc.candles, open)
       : null;
-  const decision = raw && applySantai(raw, coin.symbol, santai, open);
   // Mode Santai sizing: one equal part of the budget, sold at a fixed net profit.
   const usdtPerPart = santai.enabled && idrPerUsdt ? partUsdt(santai, idrPerUsdt) : null;
   const santaiTarget = santai.enabled && decision ? netTargetPrice(decision.price, santai.targetPct) : null;
@@ -77,6 +78,7 @@ function TradingDecision({ coin, timeframe, onClose }: { coin: Coin; timeframe: 
         stop: decision.plan.stop,
         target1: santaiTarget ?? decision.plan.target1,
         target2: santaiTarget ?? decision.plan.target2,
+        ...(santaiTarget && santai.trailing ? { trail: true } : {}),
       };
       const res = await fetch("/api/positions", {
         method: "PUT",
@@ -157,7 +159,9 @@ function TradingDecision({ coin, timeframe, onClose }: { coin: Coin; timeframe: 
                   )}
                 </div>
                 <div className="rounded bg-base p-2">
-                  <div className="font-sans text-[11px] text-muted">Jual semua di</div>
+                  <div className="font-sans text-[11px] text-muted">
+                    {santai.trailing ? "Target (lalu trailing stop)" : "Jual semua di"}
+                  </div>
                   <span className="text-up">${formatPrice(santaiTarget)}</span>
                   <div className="text-[11px] text-muted">
                     untung bersih {santai.targetPct}%

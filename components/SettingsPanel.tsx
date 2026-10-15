@@ -2,11 +2,12 @@
 
 import { UserProfile } from "@clerk/nextjs";
 import AccessSettings from "./AccessSettings";
-import SantaiSettingsPanel from "./SantaiSettings";
+import SantaiSettingsPanel, { StrategySettings } from "./SantaiSettings";
 
 export default function SettingsPanel({ isOwner }: { isOwner: boolean }) {
   return (
     <div className="flex flex-col gap-3">
+      <StrategySettings />
       <SantaiSettingsPanel />
       {isOwner ? (
         <AccessSettings />

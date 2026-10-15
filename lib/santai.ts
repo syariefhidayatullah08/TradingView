@@ -14,9 +14,22 @@ export type SantaiSettings = {
   parts: number;
   // Net profit (after fees) at which a position is sold.
   targetPct: number;
+  // Strategy switches, used in every mode. Backtested 2026-10 on 10 coins: trailing after the
+  // target clearly raised returns; Mode Sensitif and the BTC filter did not, so they start off.
+  sensitive: boolean;
+  btcFilter: boolean;
+  trailing: boolean;
 };
 
-export const DEFAULT_SANTAI: SantaiSettings = { enabled: false, capitalIdr: 1_000_000, parts: 3, targetPct: 2 };
+export const DEFAULT_SANTAI: SantaiSettings = {
+  enabled: false,
+  capitalIdr: 1_000_000,
+  parts: 3,
+  targetPct: 2,
+  sensitive: false,
+  btcFilter: false,
+  trailing: true,
+};
 
 export const SANTAI_COINS = ["BTCUSDT", "ETHUSDT", "BNBUSDT"];
 export const SANTAI_MIN_CONFIDENCE = 50;
@@ -34,6 +47,9 @@ export function sanitizeSantai(raw: unknown): SantaiSettings {
     capitalIdr: Math.round(clamp(r.capitalIdr, 100_000, 1_000_000_000, DEFAULT_SANTAI.capitalIdr)),
     parts: Math.round(clamp(r.parts, 1, 10, DEFAULT_SANTAI.parts)),
     targetPct: clamp(r.targetPct, 0.5, 20, DEFAULT_SANTAI.targetPct),
+    sensitive: r.sensitive === true,
+    btcFilter: r.btcFilter === true,
+    trailing: r.trailing !== false,
   };
 }
 

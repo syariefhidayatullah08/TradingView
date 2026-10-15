@@ -162,3 +162,63 @@ export default function SantaiSettingsPanel() {
     </section>
   );
 }
+
+const STRATEGY: { key: "trailing" | "sensitive" | "btcFilter"; label: string; hint: string }[] = [
+  {
+    key: "trailing",
+    label: "Trailing stop setelah target",
+    hint: "Setelah target tercapai, tahan selama harga naik; jual saat turun 1 ATR dari puncak. Di uji 10 koin, ini yang paling menaikkan hasil.",
+  },
+  {
+    key: "sensitive",
+    label: "Mode Sensitif",
+    hint: "BELI lebih cepat dengan sinyal lebih lemah. Lebih sering trading, tetapi di uji hasilnya tidak lebih baik. Coba dulu di Akun Demo.",
+  },
+  {
+    key: "btcFilter",
+    label: "Filter arah pasar BTC",
+    hint: "Tahan BELI saat BTC harian sedang turun. Di uji 10 koin tidak menaikkan hasil; berguna jika ingin lebih hati-hati.",
+  },
+];
+
+// On/off switches for the strategy, saved immediately to the account.
+export function StrategySettings() {
+  const { settings, loaded } = useSantai();
+  const [error, setError] = useState(false);
+
+  async function toggle(key: (typeof STRATEGY)[number]["key"]) {
+    setError(false);
+    try {
+      await saveSantai({ ...settings, [key]: !settings[key] });
+    } catch {
+      setError(true);
+    }
+  }
+
+  return (
+    <section className="panel">
+      <header className="panel-header">
+        <h2>Strategi Trading</h2>
+        <span className="text-xs text-muted">Berlaku di Mulai Trading, Pemindai, notifikasi, dan Uji Strategi</span>
+      </header>
+      <div className="flex flex-col gap-3 p-4">
+        {STRATEGY.map((s) => (
+          <label key={s.key} className="flex cursor-pointer items-start gap-3">
+            <input
+              type="checkbox"
+              checked={settings[s.key]}
+              disabled={!loaded}
+              onChange={() => toggle(s.key)}
+              className="mt-0.5 h-4 w-4 accent-[var(--t-accent)]"
+            />
+            <span>
+              <span className="text-sm font-medium">{s.label}</span>
+              <span className="block text-[11px] text-muted">{s.hint}</span>
+            </span>
+          </label>
+        ))}
+        {error && <span className="text-xs text-down">Gagal menyimpan, coba lagi</span>}
+      </div>
+    </section>
+  );
+}

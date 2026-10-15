@@ -32,6 +32,8 @@ export type Position = {
   stop: number;
   target1: number;
   target2: number;
+  // Mode Santai with trailing: after target1, ride the rise and sell one ATR below the peak.
+  trail?: boolean;
 };
 
 export type PlanLevels = {
@@ -102,7 +104,7 @@ export function evaluate(
   const sellSignalAfterEntry =
     last && last.type === "jual" && last.time > position.entryTime;
 
-  if (position.mode === "target") return targetOnly(position, price, pnlValue);
+  if (position.mode === "target") return targetOnly(position, candles, price, pnlValue);
 
   if (position.mode === "untung") {
     return profitOnly(
@@ -256,13 +258,46 @@ function profitOnly(
   return { price, pnlPct, pnlValue, verdict, headline, reasons, progress };
 }
 
-// Mode Santai: no stop loss, sell everything once the fixed net-profit target is reached.
-function targetOnly(position: Position, price: number, pnlValue: number | null): PositionStatus {
+// Mode Santai: no stop loss, sell everything once the fixed net-profit target is reached, or,
+// with trailing, once price falls one ATR from its peak after reaching the target.
+function targetOnly(position: Position, candles: Candle[], price: number, pnlValue: number | null): PositionStatus {
   const net = netPct(position.entryPrice, price);
   const goal = netPct(position.entryPrice, position.target1);
   const pnlPct = ((price - position.entryPrice) / position.entryPrice) * 100;
   const progress = Math.max(-1, Math.min(1, (price - position.entryPrice) / (position.target1 - position.entryPrice)));
-  if (price >= position.target1) {
+  if (position.trail) {
+    const step = candles.length > 1 ? candles[candles.length - 1].time - candles[candles.length - 2].time : 0;
+    const since = candles.filter((c) => c.time + step > position.entryTime);
+    const hit = since.findIndex((c) => c.high >= position.target1);
+    if (hit >= 0) {
+      const peak = Math.max(...since.slice(hit).map((c) => c.high));
+      const floor = Math.max(position.target1, peak - (atr(candles) ?? 0));
+      if (price <= floor) {
+        return {
+          price,
+          pnlPct,
+          pnlValue,
+          verdict: "jual",
+          headline: `JUAL SEMUA: harga turun dari puncak, untung bersih ${net.toFixed(2)}%`,
+          reasons: [
+            `Puncak setelah target: ${fmt(peak)}. Harga ${fmt(price)} sudah turun ke batas jual ${fmt(floor)}. Jual seluruhnya, lalu catat harga jualnya.`,
+          ],
+          progress,
+        };
+      }
+      return {
+        price,
+        pnlPct,
+        pnlValue,
+        verdict: "amankan",
+        headline: `TARGET TERCAPAI: untung bersih ${net.toFixed(2)}%, biarkan naik`,
+        reasons: [
+          `Trailing stop aktif: jual saat harga turun ke ${fmt(floor)} (1 ATR di bawah puncak ${fmt(peak)}). Batas ini ikut naik selama harga naik dan tidak pernah di bawah target.`,
+        ],
+        progress,
+      };
+    }
+  } else if (price >= position.target1) {
     return {
       price,
       pnlPct,

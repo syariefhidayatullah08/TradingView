@@ -1,5 +1,5 @@
 import { analyze, bollinger, rsi, type Candle, type Signal } from "./indicators";
-import { outlook } from "./outlook";
+import { outlook, type Outlook } from "./outlook";
 import { planLevels, type PlanLevels } from "./positions";
 import { detectSignals, volumeSplit } from "./signals";
 
@@ -28,6 +28,15 @@ const MAX_POINTS = 8;
 const BUY_POINTS = 2.5;
 const AVOID_POINTS = -1;
 const MIN_RISK_REWARD = 1.2;
+// Mode Sensitif buys on weaker agreement and a smaller reward-to-risk.
+const SENSITIVE_BUY_POINTS = 1.5;
+const SENSITIVE_MIN_RISK_REWARD = 1;
+
+export type DecideOptions = {
+  sensitive?: boolean;
+  // Daily outlook of BTC; altcoins rarely rise while it falls, so a falling BTC holds buys back.
+  market?: Outlook | null;
+};
 const OVERBOUGHT_RSI = 72;
 
 function fmt(n: number): string {
@@ -37,7 +46,12 @@ function fmt(n: number): string {
 // Whether to open a spot buy right now, from the same indicators the dashboard shows:
 // indicator score, trend outlook, the latest buy/sell signal, taker volume and the trend
 // one timeframe higher. A heuristic vote, not a forecast.
-export function decide(candles: Candle[], higher: Candle[] | null, higherLabel: string | null): Decision | null {
+export function decide(
+  candles: Candle[],
+  higher: Candle[] | null,
+  higherLabel: string | null,
+  opts: DecideOptions = {},
+): Decision | null {
   const a = analyze(candles, fmt);
   const o = outlook(candles, HORIZON);
   if (!a || !o) return null;
@@ -88,6 +102,11 @@ export function decide(candles: Candle[], higher: Candle[] | null, higherLabel: 
     reasons.push({ text: `Tren besar (${higherLabel}) ${ho.direction.toLowerCase()}`, tone: ho.tone });
   }
 
+  const m = opts.market;
+  if (m) {
+    reasons.push({ text: `Pasar BTC harian ${m.direction.toLowerCase()} (kekuatan ${m.strength}%)`, tone: m.tone });
+  }
+
   const closes = candles.map((c) => c.close);
   const r = rsi(closes);
   const bb = bollinger(closes);
@@ -105,16 +124,19 @@ export function decide(candles: Candle[], higher: Candle[] | null, higherLabel: 
   if (points <= AVOID_POINTS) {
     action = "jangan";
     headline = "Jangan beli dulu: mayoritas indikator menunjukkan tekanan jual";
-  } else if (points < BUY_POINTS) {
+  } else if (points < (opts.sensitive ? SENSITIVE_BUY_POINTS : BUY_POINTS)) {
     action = "tunggu";
     headline = "Tunggu: sinyal belum cukup kuat untuk masuk";
   } else if (ho && ho.tone === -1) {
     action = "tunggu";
     headline = `Tunggu: naik di timeframe ini, tetapi tren besar (${higherLabel}) masih turun`;
+  } else if (m && m.tone === -1) {
+    action = "tunggu";
+    headline = "Tunggu: pasar BTC sedang turun, altcoin biasanya ikut turun";
   } else if (stretched) {
     action = "tunggu";
     headline = "Tunggu koreksi: tren naik, tetapi harga sudah overbought";
-  } else if (riskReward !== null && riskReward < MIN_RISK_REWARD) {
+  } else if (riskReward !== null && riskReward < (opts.sensitive ? SENSITIVE_MIN_RISK_REWARD : MIN_RISK_REWARD)) {
     action = "tunggu";
     headline = "Tunggu: target terlalu dekat dibanding risikonya";
   } else {

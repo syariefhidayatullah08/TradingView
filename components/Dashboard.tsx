@@ -4,6 +4,7 @@ import { useEffect, useState } from "react";
 import { UserButton } from "@clerk/nextjs";
 import AiAnalysisPanel from "./AiAnalysisPanel";
 import AnalysisPanel from "./AnalysisPanel";
+import BacktestPanel from "./BacktestPanel";
 import BuySellPanel from "./BuySellPanel";
 import CoinSentiment from "./CoinSentiment";
 import DemoPanel from "./DemoPanel";
@@ -58,6 +59,7 @@ const TABS = [
   { id: "ai", label: "Analisa AI" },
   { id: "pemindai", label: "Pemindai Trading" },
   { id: "demo", label: "Akun Demo" },
+  { id: "uji", label: "Uji Strategi" },
   { id: "realtime", label: "Chart Real-Time" },
   { id: "teknikal", label: "Analisa Teknikal" },
   { id: "sinyal", label: "Sinyal Beli/Jual" },
@@ -203,6 +205,7 @@ export default function Dashboard({ isOwner = false }: { isOwner?: boolean }) {
 
           {tab === "ai" && <AiAnalysisPanel coin={coin} />}
           {tab === "demo" && <DemoPanel coin={coin} onSelect={setCoin} />}
+          {tab === "uji" && <BacktestPanel coin={coin} timeframe={timeframe} />}
           {tab === "pemindai" && (
             <ScannerPanel rows={scan} timeframe={timeframe} selected={coin.symbol} onSelect={setCoin} />
           )}

@@ -182,7 +182,9 @@ function PositionCard({
                 <div className="text-[11px] text-muted">tahan sampai target</div>
               </div>
               <div className="rounded bg-panel p-2">
-                <div className="font-sans text-[11px] text-up">Target jual semua</div>
+                <div className="font-sans text-[11px] text-up">
+                  {position.trail ? "Target, lalu trailing stop" : "Target jual semua"}
+                </div>
                 <div>${formatPrice(position.target1)}</div>
                 <div className="text-[11px] text-muted">
                   untung bersih +{netPct(position.entryPrice, position.target1).toFixed(1)}%

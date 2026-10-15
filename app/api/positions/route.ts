@@ -51,6 +51,7 @@ function sanitizePositions(raw: unknown): Position[] {
       stop,
       target1,
       target2,
+      ...(p.trail === true ? { trail: true } : {}),
     });
   }
   return out;
