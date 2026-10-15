@@ -6,6 +6,7 @@ import AiAnalysisPanel from "./AiAnalysisPanel";
 import AnalysisPanel from "./AnalysisPanel";
 import BuySellPanel from "./BuySellPanel";
 import CoinSentiment from "./CoinSentiment";
+import DemoPanel from "./DemoPanel";
 import FundamentalPanel from "./FundamentalPanel";
 import MarketDirection from "./MarketDirection";
 import MarketTable from "./MarketTable";
@@ -56,6 +57,7 @@ const CALENDAR_CONFIG = {
 const TABS = [
   { id: "ai", label: "Analisa AI" },
   { id: "pemindai", label: "Pemindai Trading" },
+  { id: "demo", label: "Akun Demo" },
   { id: "realtime", label: "Chart Real-Time" },
   { id: "teknikal", label: "Analisa Teknikal" },
   { id: "sinyal", label: "Sinyal Beli/Jual" },
@@ -200,6 +202,7 @@ export default function Dashboard({ isOwner = false }: { isOwner?: boolean }) {
           </nav>
 
           {tab === "ai" && <AiAnalysisPanel coin={coin} />}
+          {tab === "demo" && <DemoPanel coin={coin} onSelect={setCoin} />}
           {tab === "pemindai" && (
             <ScannerPanel rows={scan} timeframe={timeframe} selected={coin.symbol} onSelect={setCoin} />
           )}
