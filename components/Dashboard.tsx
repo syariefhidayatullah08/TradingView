@@ -12,6 +12,7 @@ import MarketTable from "./MarketTable";
 import NewsPanel from "./NewsPanel";
 import PositionsPanel from "./PositionsPanel";
 import RealtimeCharts from "./RealtimeCharts";
+import { SantaiToggle } from "./SantaiSettings";
 import ScannerPanel from "./ScannerPanel";
 import SettingsPanel from "./SettingsPanel";
 import SignalsOverview from "./SignalsOverview";
@@ -20,7 +21,9 @@ import TokocryptoCard from "./TokocryptoCard";
 import TradeAlerts from "./TradeAlerts";
 import TVWidget from "./TVWidget";
 import { useAlertsEnabled } from "@/lib/notify";
+import { SANTAI_TIMEFRAME } from "@/lib/santai";
 import { useScan } from "@/lib/scan";
+import { useSantai } from "@/lib/use-santai";
 import { COINS, TIMEFRAMES, type Coin, type Timeframe } from "@/lib/symbols";
 
 const TICKER_CONFIG = {
@@ -68,6 +71,13 @@ export default function Dashboard({ isOwner = false }: { isOwner?: boolean }) {
   const [tab, setTab] = useState<TabId>("ai");
   const [fullscreen, setFullscreen] = useState(false);
   const alertsOn = useAlertsEnabled();
+  const santai = useSantai();
+  // Once the saved settings arrive, open on Mode Santai's 4h candle if it is on.
+  const [santaiApplied, setSantaiApplied] = useState(false);
+  if (santai.loaded && !santaiApplied) {
+    setSantaiApplied(true);
+    if (santai.settings.enabled) setTimeframe(TIMEFRAMES[SANTAI_TIMEFRAME]);
+  }
   // Scan every coin only while someone looks at the scanner or alerts need it.
   const scan = useScan(timeframe, tab === "pemindai" || alertsOn);
 
@@ -114,6 +124,7 @@ export default function Dashboard({ isOwner = false }: { isOwner?: boolean }) {
         <div className="min-w-0 flex-1 basis-80 overflow-hidden">
           <TVWidget script="ticker-tape" config={TICKER_CONFIG} height={46} />
         </div>
+        <SantaiToggle onEnable={() => setTimeframe(TIMEFRAMES[SANTAI_TIMEFRAME])} />
         <TradeAlerts rows={scan} timeframe={timeframe} />
         <button
           onClick={() => setTab("pengaturan")}

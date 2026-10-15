@@ -2,6 +2,8 @@
 
 import { decide, type Action } from "@/lib/decision";
 import { useLiveCandles } from "@/lib/live-candles";
+import { applySantai, SANTAI_COINS } from "@/lib/santai";
+import { useSantai } from "@/lib/use-santai";
 import { higherTimeframe, type Timeframe } from "@/lib/symbols";
 
 const style: Record<Action, { badge: string; label: string }> = {
@@ -15,8 +17,17 @@ export default function SignalBadge({ symbol, timeframe }: { symbol: string; tim
   const higherTf = higherTimeframe(timeframe);
   const live = useLiveCandles(symbol, timeframe.binance);
   const higher = useLiveCandles(symbol, (higherTf ?? timeframe).binance);
+  const { settings } = useSantai();
+  if (settings.enabled && !SANTAI_COINS.includes(symbol)) {
+    return (
+      <span title="Mode Santai hanya BTC, ETH, dan BNB" className="text-[11px] text-muted">
+        lewati
+      </span>
+    );
+  }
   if (!live.candles || live.candles.length <= 60) return <span className="text-[11px] text-muted">…</span>;
-  const d = decide(live.candles, higherTf ? higher.candles : null, higherTf?.label ?? null);
+  const raw = decide(live.candles, higherTf ? higher.candles : null, higherTf?.label ?? null);
+  const d = raw && applySantai(raw, symbol, settings);
   if (!d) return <span className="text-[11px] text-muted">—</span>;
   return (
     <span title={d.headline} className="inline-flex flex-col items-end">

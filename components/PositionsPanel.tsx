@@ -4,6 +4,7 @@ import { useEffect, useState } from "react";
 import { useLiveCandles } from "@/lib/live-candles";
 import {
   evaluate,
+  netPct,
   planLevels,
   type ClosedTrade,
   type ExitMode,
@@ -74,9 +75,11 @@ function PositionCard({
               {position.amount !== null &&
                 ` · ${position.amount} ${coin?.base}`}{" "}
               · candle {tf} ·{" "}
-              {position.mode === "untung"
-                ? "jual hanya saat untung"
-                : "pakai stop loss"}
+              {position.mode === "target"
+                ? "Mode Santai: jual di target"
+                : position.mode === "untung"
+                  ? "jual hanya saat untung"
+                  : "pakai stop loss"}
             </span>
           </div>
           {status && (
@@ -171,6 +174,22 @@ function PositionCard({
             ))}
           </ul>
 
+          {position.mode === "target" ? (
+            <div className="mt-3 grid grid-cols-2 gap-2 text-center font-mono text-xs">
+              <div className="rounded bg-panel p-2">
+                <div className="font-sans text-[11px] text-muted">Stop loss</div>
+                <div>Tidak ada</div>
+                <div className="text-[11px] text-muted">tahan sampai target</div>
+              </div>
+              <div className="rounded bg-panel p-2">
+                <div className="font-sans text-[11px] text-up">Target jual semua</div>
+                <div>${formatPrice(position.target1)}</div>
+                <div className="text-[11px] text-muted">
+                  untung bersih +{netPct(position.entryPrice, position.target1).toFixed(1)}%
+                </div>
+              </div>
+            </div>
+          ) : (
           <div className="mt-3 grid grid-cols-3 gap-2 text-center font-mono text-xs">
             <div className="rounded bg-panel p-2">
               <div className="font-sans text-[11px] text-down">
@@ -219,6 +238,7 @@ function PositionCard({
               </div>
             </div>
           </div>
+          )}
 
           <div className="relative mt-3 h-2 rounded-full bg-line">
             <div className="absolute left-1/2 top-0 h-full w-px bg-muted" />
@@ -233,10 +253,10 @@ function PositionCard({
           </div>
           <div className="mt-1 flex justify-between text-[11px] text-muted">
             <span>
-              {position.mode === "untung" ? "Rugi (ditahan)" : "Stop loss"}
+              {position.mode === "stoploss" ? "Stop loss" : "Rugi (ditahan)"}
             </span>
             <span>Harga beli</span>
-            <span>Target 1</span>
+            <span>{position.mode === "target" ? "Target" : "Target 1"}</span>
           </div>
         </>
       )}

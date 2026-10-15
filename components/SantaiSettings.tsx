@@ -1,0 +1,164 @@
+"use client";
+
+import { useState } from "react";
+import { SANTAI_MIN_CONFIDENCE, type SantaiSettings } from "@/lib/santai";
+import { saveSantai, useSantai } from "@/lib/use-santai";
+
+// Header switch for Mode Santai. `onEnable` lets the dashboard move to the plan's 4h candle.
+export function SantaiToggle({ onEnable }: { onEnable: () => void }) {
+  const { settings, loaded } = useSantai();
+  const [busy, setBusy] = useState(false);
+
+  async function toggle() {
+    setBusy(true);
+    try {
+      await saveSantai({ ...settings, enabled: !settings.enabled });
+      if (!settings.enabled) onEnable();
+    } catch {
+      // The store already rolled back; the button shows the unchanged state.
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  return (
+    <button
+      onClick={toggle}
+      disabled={!loaded || busy}
+      title="BTC/ETH/BNB, candle 4 jam, modal dibagi rata, jual di untung bersih tetap, tanpa stop loss"
+      className={`rounded border px-2.5 py-1.5 text-xs font-medium disabled:opacity-50 ${
+        settings.enabled ? "border-up/50 bg-up/10 text-up" : "border-line hover:bg-base"
+      }`}
+    >
+      🌿 Mode Santai{settings.enabled ? " aktif" : ""}
+    </button>
+  );
+}
+
+function Field({
+  label,
+  hint,
+  value,
+  onChange,
+}: {
+  label: string;
+  hint: string;
+  value: string;
+  onChange: (v: string) => void;
+}) {
+  return (
+    <label className="text-[11px] text-muted">
+      {label}
+      <input
+        value={value}
+        onChange={(e) => onChange(e.target.value)}
+        inputMode="decimal"
+        className="mt-1 block w-full rounded border border-line bg-base px-2 py-1.5 font-mono text-sm text-fg"
+      />
+      <span className="mt-0.5 block">{hint}</span>
+    </label>
+  );
+}
+
+function Form({ settings, idrPerUsdt }: { settings: SantaiSettings; idrPerUsdt: number | null }) {
+  const [capital, setCapital] = useState(String(settings.capitalIdr));
+  const [parts, setParts] = useState(String(settings.parts));
+  const [target, setTarget] = useState(String(settings.targetPct));
+  const [status, setStatus] = useState<"idle" | "saving" | "saved" | "error">("idle");
+
+  const capitalIdr = Number(capital.replace(/[^\d]/g, ""));
+  const partCount = Math.round(Number(parts));
+  const targetPct = Number(target.replace(",", "."));
+  const valid = capitalIdr >= 100_000 && partCount >= 1 && partCount <= 10 && targetPct >= 0.5 && targetPct <= 20;
+  const perPart = valid ? capitalIdr / partCount : null;
+
+  async function save() {
+    setStatus("saving");
+    try {
+      await saveSantai({ ...settings, capitalIdr, parts: partCount, targetPct });
+      setStatus("saved");
+    } catch {
+      setStatus("error");
+    }
+  }
+
+  return (
+    <div className="flex flex-col gap-3 p-4">
+      <div className="grid gap-3 sm:grid-cols-3">
+        <Field
+          label="Modal (Rp)"
+          hint="Uang dingin yang siap ditahan lama"
+          value={capital}
+          onChange={(v) => {
+            setCapital(v);
+            setStatus("idle");
+          }}
+        />
+        <Field
+          label="Dibagi jadi berapa bagian"
+          hint="Maksimal posisi terbuka sekaligus (1–10)"
+          value={parts}
+          onChange={(v) => {
+            setParts(v);
+            setStatus("idle");
+          }}
+        />
+        <Field
+          label="Target untung bersih (%)"
+          hint="Setelah biaya Tokocrypto (0,5–20)"
+          value={target}
+          onChange={(v) => {
+            setTarget(v);
+            setStatus("idle");
+          }}
+        />
+      </div>
+      {perPart && (
+        <p className="text-xs">
+          Setiap beli: <b>Rp {Math.round(perPart).toLocaleString("id-ID")}</b>
+          {idrPerUsdt && <> ≈ <b>${(perPart / idrPerUsdt).toFixed(2)} USDT</b></>}. Untung per transaksi ≈ Rp{" "}
+          {Math.round((perPart * targetPct) / 100).toLocaleString("id-ID")}.
+        </p>
+      )}
+      <div className="flex items-center gap-3">
+        <button
+          onClick={save}
+          disabled={!valid || status === "saving"}
+          className="rounded btn-active px-3 py-1.5 text-xs font-semibold text-white disabled:opacity-50"
+        >
+          Simpan
+        </button>
+        {status === "saved" && <span className="text-xs text-up">Tersimpan</span>}
+        {status === "error" && <span className="text-xs text-down">Gagal menyimpan</span>}
+        {!valid && <span className="text-xs text-down">Periksa isian: modal minimal Rp 100.000</span>}
+      </div>
+      <ul className="list-disc pl-4 text-[11px] text-muted">
+        <li>Hanya BTC, ETH, dan BNB, memakai candle 4 jam.</li>
+        <li>BELI hanya jika keyakinan minimal {SANTAI_MIN_CONFIDENCE}%, satu posisi per koin.</li>
+        <li>Tanpa stop loss: posisi ditahan sampai target, walaupun sempat minus.</li>
+        <li>
+          Uji 4 bulan terakhir: sebagian besar pembelian terjual untung dalam beberapa hari, tetapi pembelian
+          sebelum pasar turun bisa tertahan minus berminggu-minggu. Bukan jaminan untung.
+        </li>
+      </ul>
+    </div>
+  );
+}
+
+export default function SantaiSettingsPanel() {
+  const { settings, loaded, idrPerUsdt } = useSantai();
+  return (
+    <section className="panel">
+      <header className="panel-header">
+        <h2>Mode Santai</h2>
+        <span className="text-xs text-muted">{settings.enabled ? "Aktif" : "Nonaktif"}</span>
+      </header>
+      {loaded ? (
+        // Mounted only after the saved settings load, so the fields start from them.
+        <Form settings={settings} idrPerUsdt={idrPerUsdt} />
+      ) : (
+        <p className="p-4 text-sm text-muted">Memuat…</p>
+      )}
+    </section>
+  );
+}

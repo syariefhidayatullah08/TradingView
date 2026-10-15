@@ -110,7 +110,7 @@ export default function TradeReport({
             </div>
             <p className="mt-1 text-[11px] text-muted">
               Dikelompokkan menurut minggu penjualan (Senin–Minggu). Hasil % = untung bersih dibagi modal yang
-              dipakai minggu itu; untuk transaksi tanpa jumlah koin dipakai rata-rata % per transaksi.
+              dipakai minggu itu; untuk transaksi tanpa jumlah koin dipakai rata-rata % per transaksi. Semua hasil sudah dipotong biaya Tokocrypto 0,1% saat beli dan 0,1% saat jual.
             </p>
           </div>
         )}

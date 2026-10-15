@@ -3,6 +3,8 @@
 import { useEffect, useState } from "react";
 import { decide, type Decision } from "./decision";
 import { getLive, subscribeLive } from "./live-candles";
+import { applySantai } from "./santai";
+import { getSantai } from "./use-santai";
 import { COINS, higherTimeframe, type Coin, type Timeframe } from "./symbols";
 
 export type ScanRow = { coin: Coin; interval: string; decision: Decision | null; live: boolean; error: boolean };
@@ -17,8 +19,8 @@ function scanOnce(timeframe: Timeframe): ScanRow[] {
   return COINS.map((coin) => {
     const live = getLive(coin.symbol, timeframe.binance);
     const big = higher ? getLive(coin.symbol, higher.binance).candles : null;
-    const decision =
-      live.candles && live.candles.length > 60 ? decide(live.candles, big, higher?.label ?? null) : null;
+    const raw = live.candles && live.candles.length > 60 ? decide(live.candles, big, higher?.label ?? null) : null;
+    const decision = raw && applySantai(raw, coin.symbol, getSantai());
     return { coin, interval: timeframe.binance, decision, live: live.live, error: live.error };
   });
 }

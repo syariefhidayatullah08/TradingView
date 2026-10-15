@@ -2,14 +2,15 @@ import type { NextRequest } from "next/server";
 import { denyUnlessAllowed } from "@/lib/access";
 import { COINS } from "@/lib/symbols";
 
-// Best bid/ask of the coin's IDR pair on Tokocrypto.
+// Best bid/ask of the coin's (or USDT's) IDR pair on Tokocrypto.
 export async function GET(request: NextRequest) {
   const denied = await denyUnlessAllowed();
   if (denied) return denied;
 
   const base = request.nextUrl.searchParams.get("base");
-  const coin = COINS.find((c) => c.base === base);
-  if (!coin || !coin.tokoIdr) {
+  // USDT/IDR is the rupiah rate used to size Mode Santai buys.
+  const coin = base === "USDT" ? { base } : COINS.find((c) => c.base === base && c.tokoIdr);
+  if (!coin) {
     return Response.json({ error: "Pasangan IDR tidak tersedia" }, { status: 400 });
   }
   try {

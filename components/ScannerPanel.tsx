@@ -1,7 +1,9 @@
 "use client";
 
 import type { Action } from "@/lib/decision";
+import { SANTAI_COINS } from "@/lib/santai";
 import type { ScanRow } from "@/lib/scan";
+import { useSantai } from "@/lib/use-santai";
 import { formatPrice, higherTimeframe, type Coin, type Timeframe } from "@/lib/symbols";
 
 const actionStyle: Record<Action, { text: string; label: string; order: number }> = {
@@ -30,8 +32,11 @@ export default function ScannerPanel({
   selected: string;
   onSelect: (coin: Coin) => void;
 }) {
-  const sorted = rows ? [...rows].sort(rank) : null;
-  const buys = rows?.filter((r) => r.decision?.action === "beli").length ?? 0;
+  const { settings } = useSantai();
+  // Mode Santai trades only its few coins, so the others are noise here.
+  const shown = settings.enabled ? rows?.filter((r) => SANTAI_COINS.includes(r.coin.symbol)) : rows;
+  const sorted = shown ? [...shown].sort(rank) : null;
+  const buys = shown?.filter((r) => r.decision?.action === "beli").length ?? 0;
   const higher = higherTimeframe(timeframe);
 
   return (
@@ -44,7 +49,12 @@ export default function ScannerPanel({
         </span>
       </header>
 
-      {!sorted && <p className="p-4 text-sm text-muted">Memindai 20 koin…</p>}
+      {!sorted && <p className="p-4 text-sm text-muted">Memindai koin…</p>}
+      {settings.enabled && (
+        <p className="px-4 pt-3 text-xs text-muted">
+          🌿 Mode Santai aktif: hanya BTC, ETH, dan BNB, dengan keyakinan minimal 50%.
+        </p>
+      )}
 
       {sorted && (
         <>

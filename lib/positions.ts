@@ -4,7 +4,21 @@ import { detectSignals } from "./signals";
 
 // "untung": never advise selling below the entry price (no stop loss); sell only once the
 // position is in profit and the market turns. "stoploss": classic plan with a stop loss.
-export type ExitMode = "untung" | "stoploss";
+// "target": Mode Santai; hold through losses and sell the whole position at target1, a fixed net profit.
+export type ExitMode = "untung" | "stoploss" | "target";
+
+// Tokocrypto spot trading fee per side, in percent.
+export const FEE_PCT = 0.1;
+
+// Sell price that leaves `netPct` profit after paying the fee on both the buy and the sell.
+export function netTargetPrice(entry: number, netPct: number): number {
+  return (entry * (1 + FEE_PCT / 100) * (1 + netPct / 100)) / (1 - FEE_PCT / 100);
+}
+
+// Profit in percent of the money spent, after fees on both sides.
+export function netPct(entry: number, exit: number): number {
+  return ((exit * (1 - FEE_PCT / 100)) / (entry * (1 + FEE_PCT / 100)) - 1) * 100;
+}
 
 export type Position = {
   id: string;
@@ -87,6 +101,8 @@ export function evaluate(
   const last = signals[signals.length - 1];
   const sellSignalAfterEntry =
     last && last.type === "jual" && last.time > position.entryTime;
+
+  if (position.mode === "target") return targetOnly(position, price, pnlValue);
 
   if (position.mode === "untung") {
     return profitOnly(
@@ -240,6 +256,41 @@ function profitOnly(
   return { price, pnlPct, pnlValue, verdict, headline, reasons, progress };
 }
 
+// Mode Santai: no stop loss, sell everything once the fixed net-profit target is reached.
+function targetOnly(position: Position, price: number, pnlValue: number | null): PositionStatus {
+  const net = netPct(position.entryPrice, price);
+  const goal = netPct(position.entryPrice, position.target1);
+  const pnlPct = ((price - position.entryPrice) / position.entryPrice) * 100;
+  const progress = Math.max(-1, Math.min(1, (price - position.entryPrice) / (position.target1 - position.entryPrice)));
+  if (price >= position.target1) {
+    return {
+      price,
+      pnlPct,
+      pnlValue,
+      verdict: "jual",
+      headline: `JUAL SEMUA: target tercapai, untung bersih ${net.toFixed(2)}%`,
+      reasons: [
+        `Harga ${fmt(price)} sudah di atas target ${fmt(position.target1)}. Jual seluruhnya di Tokocrypto, lalu catat harga jualnya.`,
+      ],
+      progress,
+    };
+  }
+  return {
+    price,
+    pnlPct,
+    pnlValue,
+    verdict: "tahan",
+    headline:
+      net < 0
+        ? `TAHAN: minus ${Math.abs(net).toFixed(2)}% bersih, tunggu sampai target`
+        : `TAHAN: untung bersih ${net.toFixed(2)}%, target ${goal.toFixed(1)}%`,
+    reasons: [
+      `Mode Santai menjual di ${fmt(position.target1)} (untung bersih ${goal.toFixed(1)}% setelah biaya). Tanpa stop loss, jadi tidak perlu panik saat harga turun.`,
+    ],
+    progress,
+  };
+}
+
 function fmt(n: number): string {
   const digits = n >= 1000 ? 2 : n >= 1 ? 3 : n >= 0.01 ? 5 : 8;
   return `$${n.toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: digits })}`;
@@ -258,11 +309,12 @@ export type ClosedTrade = {
 
 export type TradeResult = { pnlPct: number; pnlValue: number | null };
 
+// Net of the Tokocrypto fee on both the buy and the sell.
 export function tradeResult(t: ClosedTrade): TradeResult {
+  const pnlPct = netPct(t.entryPrice, t.exitPrice);
   return {
-    pnlPct: ((t.exitPrice - t.entryPrice) / t.entryPrice) * 100,
-    pnlValue:
-      t.amount === null ? null : (t.exitPrice - t.entryPrice) * t.amount,
+    pnlPct,
+    pnlValue: t.amount === null ? null : (pnlPct / 100) * t.entryPrice * (1 + FEE_PCT / 100) * t.amount,
   };
 }
 

@@ -3,7 +3,9 @@
 import { useEffect, useState } from "react";
 import { decide, type Action } from "@/lib/decision";
 import { useLiveCandles } from "@/lib/live-candles";
-import type { Position } from "@/lib/positions";
+import { netTargetPrice, type Position } from "@/lib/positions";
+import { applySantai, partUsdt } from "@/lib/santai";
+import { useSantai } from "@/lib/use-santai";
 import { formatPrice, higherTimeframe, tokocryptoUrl, type Coin, type Timeframe } from "@/lib/symbols";
 
 const actionStyle: Record<Action, { box: string; title: string; label: string }> = {
@@ -29,11 +31,32 @@ function TradingDecision({ coin, timeframe, onClose }: { coin: Coin; timeframe: 
   const [amount, setAmount] = useState("");
   const [save, setSave] = useState<SaveState>("idle");
   const [saveError, setSaveError] = useState("");
+  const { settings: santai, idrPerUsdt } = useSantai();
+  // Open positions, for Mode Santai's one-per-coin and capital-parts limits.
+  const [open, setOpen] = useState<Position[] | null>(null);
 
-  const decision =
+  useEffect(() => {
+    let cancelled = false;
+    fetch("/api/positions")
+      .then((res) => (res.ok ? res.json() : null))
+      .then((json) => {
+        if (!cancelled && json) setOpen(json.positions);
+      })
+      .catch(() => {});
+    return () => {
+      cancelled = true;
+    };
+  }, []);
+
+  const raw =
     live.candles && live.candles.length > 60
       ? decide(live.candles, higherTf ? higher.candles : null, higherTf?.label ?? null)
       : null;
+  const decision = raw && applySantai(raw, coin.symbol, santai, open);
+  // Mode Santai sizing: one equal part of the budget, sold at a fixed net profit.
+  const usdtPerPart = santai.enabled && idrPerUsdt ? partUsdt(santai, idrPerUsdt) : null;
+  const santaiTarget = santai.enabled && decision ? netTargetPrice(decision.price, santai.targetPct) : null;
+  const suggestedAmount = usdtPerPart && decision ? usdtPerPart / decision.price : null;
 
   async function record() {
     if (!decision?.plan) return;
@@ -47,13 +70,13 @@ function TradingDecision({ coin, timeframe, onClose }: { coin: Coin; timeframe: 
       const position: Position = {
         ...stampNew(),
         symbol: coin.symbol,
-        mode: "untung",
+        mode: santaiTarget ? "target" : "untung",
         interval: timeframe.binance,
         entryPrice: decision.price,
-        amount: amount.trim() === "" ? null : Number(amount) || null,
+        amount: amount.trim() === "" ? suggestedAmount : Number(amount) || null,
         stop: decision.plan.stop,
-        target1: decision.plan.target1,
-        target2: decision.plan.target2,
+        target1: santaiTarget ?? decision.plan.target1,
+        target2: santaiTarget ?? decision.plan.target2,
       };
       const res = await fetch("/api/positions", {
         method: "PUT",
@@ -62,6 +85,7 @@ function TradingDecision({ coin, timeframe, onClose }: { coin: Coin; timeframe: 
       });
       const json = await res.json();
       if (!res.ok) throw new Error(json.error ?? `HTTP ${res.status}`);
+      setOpen(json.positions);
       setSave("saved");
     } catch (e) {
       setSaveError(e instanceof Error ? e.message : "Gagal menyimpan");
@@ -114,7 +138,47 @@ function TradingDecision({ coin, timeframe, onClose }: { coin: Coin; timeframe: 
             </ul>
           </div>
 
-          {decision.plan && (
+          {santaiTarget && decision.action === "beli" && (
+            <div>
+              <div className="mb-1.5 text-[11px] uppercase tracking-wide text-muted">🌿 Rencana Mode Santai</div>
+              <div className="grid grid-cols-1 gap-2 font-mono text-xs sm:grid-cols-3">
+                <div className="rounded bg-base p-2">
+                  <div className="font-sans text-[11px] text-muted">Beli (1 dari {santai.parts} bagian)</div>
+                  {usdtPerPart ? (
+                    <>
+                      ${usdtPerPart.toFixed(2)} USDT
+                      <div className="text-[11px] text-muted">
+                        ≈ Rp {Math.round(santai.capitalIdr / santai.parts).toLocaleString("id-ID")} ·{" "}
+                        {suggestedAmount?.toPrecision(3)} {coin.base}
+                      </div>
+                    </>
+                  ) : (
+                    "memuat kurs…"
+                  )}
+                </div>
+                <div className="rounded bg-base p-2">
+                  <div className="font-sans text-[11px] text-muted">Jual semua di</div>
+                  <span className="text-up">${formatPrice(santaiTarget)}</span>
+                  <div className="text-[11px] text-muted">
+                    untung bersih {santai.targetPct}%
+                    {usdtPerPart && ` ≈ $${((usdtPerPart * santai.targetPct) / 100).toFixed(2)}`}
+                  </div>
+                </div>
+                <div className="rounded bg-base p-2">
+                  <div className="font-sans text-[11px] text-muted">Stop loss</div>
+                  Tidak ada
+                  <div className="text-[11px] text-muted">tahan sampai target</div>
+                </div>
+              </div>
+              {open && (
+                <div className="mt-1 text-[11px] text-muted">
+                  Bagian terpakai: {open.length}/{santai.parts}. Biaya Tokocrypto 0,1% beli + 0,1% jual sudah dihitung.
+                </div>
+              )}
+            </div>
+          )}
+
+          {decision.plan && !(santaiTarget && decision.action === "beli") && (
             <div>
               <div className="mb-1.5 text-[11px] uppercase tracking-wide text-muted">
                 {decision.action === "beli" ? "Rencana trading" : "Rencana jika tetap ingin beli"}
@@ -158,7 +222,7 @@ function TradingDecision({ coin, timeframe, onClose }: { coin: Coin; timeframe: 
                       value={amount}
                       onChange={(e) => setAmount(e.target.value)}
                       inputMode="decimal"
-                      placeholder="mis. 0.01"
+                      placeholder={suggestedAmount ? suggestedAmount.toPrecision(3) : "mis. 0.01"}
                       className="mt-1 block w-32 rounded border border-line bg-panel px-2 py-1.5 font-mono text-sm text-fg"
                     />
                   </label>
