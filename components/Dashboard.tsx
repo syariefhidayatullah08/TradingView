@@ -7,6 +7,7 @@ import AnalysisPanel from "./AnalysisPanel";
 import BacktestPanel from "./BacktestPanel";
 import BuySellPanel from "./BuySellPanel";
 import CoinSentiment from "./CoinSentiment";
+import DcaPanel from "./DcaPanel";
 import DemoPanel from "./DemoPanel";
 import FundamentalPanel from "./FundamentalPanel";
 import MarketDirection from "./MarketDirection";
@@ -60,6 +61,7 @@ const TABS = [
   { id: "ai", label: "Analisa AI" },
   { id: "pemindai", label: "Pemindai Trading" },
   { id: "demo", label: "Akun Demo" },
+  { id: "dca", label: "Inti (DCA)" },
   { id: "uji", label: "Uji Strategi" },
   { id: "realtime", label: "Chart Real-Time" },
   { id: "teknikal", label: "Analisa Teknikal" },
@@ -208,6 +210,7 @@ export default function Dashboard({ isOwner = false }: { isOwner?: boolean }) {
 
           {tab === "ai" && <AiAnalysisPanel coin={coin} />}
           {tab === "demo" && <DemoPanel coin={coin} onSelect={setCoin} />}
+          {tab === "dca" && <DcaPanel />}
           {tab === "uji" && <BacktestPanel coin={coin} timeframe={timeframe} />}
           {tab === "pemindai" && (
             <ScannerPanel rows={scan} timeframe={timeframe} selected={coin.symbol} onSelect={setCoin} />

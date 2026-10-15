@@ -1,7 +1,7 @@
 import { clerkClient } from "@clerk/nextjs/server";
 import { getAccess } from "@/lib/access";
 import { buy, freshAccount, pack, sell, unpack, validSymbol, type DemoAccount } from "@/lib/demo";
-import { BINANCE_API } from "@/lib/symbols";
+import { livePrice } from "@/lib/binance-server";
 
 async function requireUser(): Promise<{ userId: string } | Response> {
   const access = await getAccess();
@@ -20,21 +20,6 @@ async function load(userId: string): Promise<DemoAccount> {
 async function store(userId: string, account: DemoAccount) {
   const client = await clerkClient();
   await client.users.updateUserMetadata(userId, { privateMetadata: { demo: pack(account) } });
-}
-
-// The live last-trade price on Binance, fetched at the moment the order is placed.
-async function livePrice(symbol: string): Promise<number | null> {
-  try {
-    const res = await fetch(`${BINANCE_API}/ticker/price?symbol=${symbol}`, {
-      cache: "no-store",
-      signal: AbortSignal.timeout(6000),
-    });
-    if (!res.ok) return null;
-    const price = Number((await res.json())?.price);
-    return Number.isFinite(price) && price > 0 ? price : null;
-  } catch {
-    return null;
-  }
 }
 
 export async function GET() {

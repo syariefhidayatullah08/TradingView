@@ -4,7 +4,9 @@ import { useEffect, useRef, useState } from "react";
 import type { Action } from "@/lib/decision";
 import { useLiveCandles } from "@/lib/live-candles";
 import { disableAlerts, dismissToast, enableAlerts, notify, useAlertsEnabled, useToasts } from "@/lib/notify";
+import { isDue } from "@/lib/dca";
 import { evaluate, type Position, type Verdict } from "@/lib/positions";
+import { useSantai } from "@/lib/use-santai";
 import type { ScanRow } from "@/lib/scan";
 import { COINS, formatPrice, type Timeframe } from "@/lib/symbols";
 
@@ -58,6 +60,31 @@ function PositionAlerts() {
   }, []);
 
   return positions.map((p) => <PositionWatch key={p.id} position={p} />);
+}
+
+// Reminds once per day while the week's DCA buy is due.
+function DcaReminder() {
+  const { settings } = useSantai();
+  useEffect(() => {
+    if (!settings.dcaEnabled) return;
+    let cancelled = false;
+    fetch("/api/dca")
+      .then((res) => (res.ok ? res.json() : null))
+      .then((state) => {
+        if (cancelled || !state || !isDue(state, Date.now(), settings.dcaDay)) return;
+        const key = `kriptoscope:dca-reminded:${new Date().toDateString()}`;
+        try {
+          if (localStorage.getItem(key)) return;
+          localStorage.setItem(key, "1");
+        } catch {}
+        notify("Jadwal DCA minggu ini", `Beli BTC/ETH senilai Rp ${settings.dcaIdr.toLocaleString("id-ID")}, lalu catat di tab Inti (DCA).`, "info", "dca");
+      })
+      .catch(() => {});
+    return () => {
+      cancelled = true;
+    };
+  }, [settings.dcaEnabled, settings.dcaDay, settings.dcaIdr]);
+  return null;
 }
 
 export default function TradeAlerts({ rows, timeframe }: { rows: ScanRow[] | null; timeframe: Timeframe }) {
@@ -125,6 +152,7 @@ export default function TradeAlerts({ rows, timeframe }: { rows: ScanRow[] | nul
       </button>
 
       {enabled && <PositionAlerts />}
+      {enabled && <DcaReminder />}
 
       <div className="pointer-events-none fixed bottom-4 right-4 z-[70] flex w-[min(360px,calc(100vw-32px))] flex-col gap-2">
         {toasts.map((t) => (
