@@ -15,7 +15,8 @@ import {
 import type { Candle, Signal } from "@/lib/indicators";
 import { useLiveCandles } from "@/lib/live-candles";
 import { outlook } from "@/lib/outlook";
-import { detectSignals, type TradeSignal } from "@/lib/signals";
+import type { BacktestResult } from "@/lib/backtest";
+import { useStrategyTrades } from "@/lib/use-strategy-trades";
 import { COINS, formatPrice, pricePrecision, type Coin, type Timeframe } from "@/lib/symbols";
 
 const HISTORY = 500;
@@ -34,18 +35,31 @@ const offset = new Date().getTimezoneOffset() * 60;
 const toTime = (c: Candle) => (c.time / 1000 - offset) as UTCTimestamp;
 const toBar = (c: Candle) => ({ time: toTime(c), open: c.open, high: c.high, low: c.low, close: c.close });
 
-function sinceLabel(time: number): string {
-  const minutes = Math.round((Date.now() - time) / 60_000);
-  if (minutes < 60) return `${minutes} mnt lalu`;
-  const hours = Math.round(minutes / 60);
-  if (hours < 48) return `${hours} jam lalu`;
-  return `${Math.round(hours / 24)} hari lalu`;
+function pct(n: number): string {
+  return `${n >= 0 ? "+" : ""}${n.toFixed(1)}%`;
 }
 
-function sincePct(signal: TradeSignal, price: number): string {
-  const pct = ((price - signal.price) / signal.price) * 100;
-  return `${pct >= 0 ? "+" : ""}${pct.toFixed(2)}% sejak sinyal`;
+// One marker where the strategy bought and one where it sold, labelled with the net result.
+function tradeMarkers(result: BacktestResult, intervalMs: number, first: number): SeriesMarker<Time>[] {
+  const at = (closeTime: number) => ((closeTime - intervalMs) / 1000 - offset) as UTCTimestamp;
+  const out: SeriesMarker<Time>[] = [];
+  for (const t of result.trades) {
+    if (t.entryTime - intervalMs < first) continue;
+    const win = t.netPct >= 0;
+    out.push({ time: at(t.entryTime), position: "belowBar", shape: "arrowUp", color: "#34d399", text: "BELI" });
+    if (t.reason === "open") continue;
+    out.push({
+      time: at(t.exitTime),
+      position: "aboveBar",
+      shape: "arrowDown",
+      color: win ? "#34d399" : "#fb7185",
+      text: `${t.reason === "stop" ? "STOP" : "JUAL"} ${pct(t.netPct)}`,
+    });
+  }
+  return out.sort((a, b) => (a.time as number) - (b.time as number));
 }
+
+const INTERVAL_MS: Record<string, number> = { "15m": 900_000, "1h": 3_600_000, "4h": 14_400_000, "1d": 86_400_000, "1w": 604_800_000 };
 
 function directionOf(candles: Candle[]): Direction | null {
   const o = outlook(candles, 1);
@@ -56,7 +70,6 @@ type ChartRefs = {
   chart: IChartApi;
   series: ISeriesApi<"Candlestick">;
   markers: ISeriesMarkersPluginApi<Time>;
-  lastSignalTime: number;
   loaded: boolean;
 };
 
@@ -76,6 +89,7 @@ function MiniChart({
   const key = `${coin.symbol}:${timeframe.binance}`;
   const live = useLiveCandles(coin.symbol, timeframe.binance);
   const candles = live.candles;
+  const result = useStrategyTrades(coin.symbol, timeframe, candles);
 
   useEffect(() => {
     const el = ref.current;
@@ -94,7 +108,7 @@ function MiniChart({
       wickDownColor: "#fb7185",
       borderVisible: false,
     });
-    refs.current = { chart, series, markers: createSeriesMarkers(series, []), lastSignalTime: -1, loaded: false };
+    refs.current = { chart, series, markers: createSeriesMarkers(series, []), loaded: false };
     return () => {
       chart.remove();
       refs.current = null;
@@ -114,27 +128,23 @@ function MiniChart({
     } else {
       r.series.update(toBar(last));
     }
-    // Redraw buy/sell arrows only when a new signal appears.
-    const signals = detectSignals(candles);
-    const newest = signals[signals.length - 1]?.time ?? 0;
-    if (newest !== r.lastSignalTime) {
-      r.lastSignalTime = newest;
-      const markers: SeriesMarker<Time>[] = signals.map((sg) => ({
-        time: toTime(candles[sg.index]),
-        position: sg.type === "beli" ? "belowBar" : "aboveBar",
-        shape: sg.type === "beli" ? "arrowUp" : "arrowDown",
-        color: sg.type === "beli" ? "#34d399" : "#fb7185",
-        text: sg.type === "beli" ? "BELI" : "JUAL",
-      }));
-      r.markers.setMarkers(markers);
-    }
   }, [candles]);
+
+  // Arrows from the real strategy, redrawn when its trades are recomputed.
+  useEffect(() => {
+    const r = refs.current;
+    if (!r || !result || !candles?.length) return;
+    r.markers.setMarkers(tradeMarkers(result, INTERVAL_MS[timeframe.binance], candles[0].time));
+    // candles is read only for its first time, which does not change between recomputes.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [result, timeframe.binance]);
 
   const price = candles ? candles[candles.length - 1].close : undefined;
   const changePct = candles ? ((candles[candles.length - 1].close - candles[0].open) / candles[0].open) * 100 : 0;
   const direction = candles ? directionOf(candles) : null;
-  const signals = candles ? detectSignals(candles) : [];
-  const lastSignal = signals[signals.length - 1] ?? null;
+  const closedTrades = result ? result.wins + result.losses : 0;
+  const openTrade = result?.trades.find((t) => t.reason === "open") ?? null;
+  const openPct = openTrade && price !== undefined ? ((price - openTrade.entryPrice) / openTrade.entryPrice) * 100 - 0.2 : null;
 
   return (
     <section className={`panel overflow-hidden ${selected ? "border-accent" : ""}`}>
@@ -176,15 +186,17 @@ function MiniChart({
             <span className="text-muted">
               {direction.tone === 0 ? "belum jelas" : `kekuatan sinyal ${direction.strength}%`}
             </span>
-            {lastSignal && price !== undefined && (
+            {result && (
               <span
-                className={`rounded px-1.5 py-0.5 font-semibold ${
-                  lastSignal.type === "beli" ? "bg-up/15 text-up" : "bg-down/15 text-down"
-                }`}
-                title={lastSignal.reason}
+                className={`rounded px-1.5 py-0.5 font-semibold ${result.totalPct >= 0 ? "bg-up/15 text-up" : "bg-down/15 text-down"}`}
+                title="Hasil strategi aplikasi di candle yang tampil, setelah biaya"
               >
-                {lastSignal.type === "beli" ? "▲ BELI" : "▼ JUAL"} {sinceLabel(lastSignal.time)} ·{" "}
-                {sincePct(lastSignal, price)}
+                Strategi: {closedTrades} trade, {result.wins} untung · {pct(result.totalPct)}
+              </span>
+            )}
+            {openTrade && openPct !== null && (
+              <span className="rounded bg-accent/15 px-1.5 py-0.5 font-semibold text-accent-soft">
+                Posisi terbuka {pct(openPct)}
               </span>
             )}
           </span>
@@ -210,8 +222,9 @@ export default function RealtimeCharts({
     <div className="flex flex-col gap-2">
       <div className="flex flex-wrap items-center justify-between gap-2 px-1">
         <p className="text-xs text-muted">
-          Candle {timeframe.label} · harga, arah, dan sinyal ▲ beli / ▼ jual diperbarui langsung dari Binance.
-          Persentase = perubahan sepanjang {HISTORY} candle. Klik judul untuk membuka di chart utama.
+          Candle {timeframe.label} · harga dan arah langsung dari Binance. ▲ BELI dan ▼ JUAL adalah transaksi strategi
+          aplikasi (sama dengan Mulai Trading, dengan pengaturan Anda); label JUAL menunjukkan hasil bersih setelah
+          biaya, hijau untung dan merah rugi. Persentase harga = perubahan sepanjang {HISTORY} candle.
         </p>
         <div className="flex items-center gap-1 text-xs">
           <span className="text-muted">Tampilkan</span>
