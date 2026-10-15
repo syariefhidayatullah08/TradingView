@@ -47,7 +47,7 @@ export default function MarketTable({
     <section className="panel">
       <header className="panel-header">
         <h2>Daftar Pantau</h2>
-        <span className="text-xs text-muted">{error ? "Gagal memperbarui" : `Sinyal candle ${timeframe.label}`}</span>
+        <span className="text-xs text-muted">{error ? "Gagal memperbarui" : `Keputusan candle ${timeframe.label}`}</span>
       </header>
       {error && !tickers ? (
         <p className="p-4 text-sm text-down">Data pasar gagal dimuat.</p>
@@ -56,10 +56,10 @@ export default function MarketTable({
         <table className="w-full text-sm">
           <thead>
             <tr className="text-[11px] uppercase tracking-wide text-muted">
-              <th className="px-3 py-2 text-left font-medium">Koin</th>
+              <th className="px-2.5 py-2 text-left font-medium">Koin</th>
               <th className="px-2 py-2 text-right font-medium">Harga</th>
               <th className="px-2 py-2 text-right font-medium">24j</th>
-              <th className="px-3 py-2 text-right font-medium">Sinyal</th>
+              <th className="px-2.5 py-2 text-right font-medium">Keputusan</th>
             </tr>
           </thead>
           <tbody>
@@ -74,22 +74,22 @@ export default function MarketTable({
                     selected === coin.symbol ? "bg-base" : ""
                   }`}
                 >
-                  <td className="px-3 py-2">
+                  <td className="px-2.5 py-2">
                     <div className="font-semibold">{coin.base}</div>
                     <div className="text-[11px] text-muted">{coin.name}</div>
                   </td>
-                  <td className="px-2 py-2 text-right font-mono">
+                  <td className="px-1.5 py-2 text-right font-mono text-xs">
                     {t ? formatPrice(Number(t.lastPrice)) : "—"}
                   </td>
                   <td
-                    className={`px-2 py-2 text-right font-mono ${
+                    className={`px-1.5 py-2 text-right font-mono text-xs ${
                       change === null ? "text-muted" : change >= 0 ? "text-up" : "text-down"
                     }`}
                   >
                     {change === null ? "—" : `${change >= 0 ? "+" : ""}${change.toFixed(2)}%`}
                   </td>
-                  <td className="px-3 py-2 text-right">
-                    <SignalBadge symbol={coin.symbol} interval={timeframe.binance} />
+                  <td className="px-2.5 py-2 text-right">
+                    <SignalBadge symbol={coin.symbol} timeframe={timeframe} />
                     <div className="text-[10px] text-muted">
                       vol {t ? `${formatCompact(Number(t.quoteVolume))}` : "—"}
                     </div>

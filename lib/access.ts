@@ -8,6 +8,8 @@ export type Access = {
   email: string;
   isOwner: boolean;
   allowed: boolean;
+  // Turned away by the owner; never auto-approved from the allowlist.
+  rejected: boolean;
 };
 
 export function isOwnerEmail(email: string): boolean {
@@ -37,7 +39,12 @@ export async function setAllowlist(emails: string[]): Promise<void> {
 
 export async function setApproved(userId: string, approved: boolean): Promise<void> {
   const client = await clerkClient();
-  await client.users.updateUserMetadata(userId, { publicMetadata: { approved } });
+  await client.users.updateUserMetadata(userId, { publicMetadata: { approved, rejected: false } });
+}
+
+export async function setRejected(userId: string): Promise<void> {
+  const client = await clerkClient();
+  await client.users.updateUserMetadata(userId, { publicMetadata: { approved: false, rejected: true } });
 }
 
 export async function getAccess(): Promise<Access | null> {
@@ -47,9 +54,10 @@ export async function getAccess(): Promise<Access | null> {
   const verified = primary?.verification?.status === "verified";
   const email = verified ? (primary?.emailAddress.toLowerCase() ?? "") : "";
   const isOwner = email !== "" && isOwnerEmail(email);
-  let allowed = isOwner || user.publicMetadata.approved === true;
+  const rejected = !isOwner && user.publicMetadata.rejected === true;
+  let allowed = isOwner || (!rejected && user.publicMetadata.approved === true);
 
-  if (!allowed && email) {
+  if (!allowed && !rejected && email) {
     const allowlist = await getAllowlist();
     if (allowlist.includes(email)) {
       await setApproved(user.id, true);
@@ -57,7 +65,7 @@ export async function getAccess(): Promise<Access | null> {
     }
   }
 
-  return { userId: user.id, email, isOwner, allowed };
+  return { userId: user.id, email, isOwner, allowed, rejected };
 }
 
 // For API routes: a Response to return when the caller may not use the app, else null.

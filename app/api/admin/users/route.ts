@@ -1,5 +1,5 @@
 import { clerkClient } from "@clerk/nextjs/server";
-import { getAccess, getAllowlist, isOwnerEmail, setAllowlist, setApproved } from "@/lib/access";
+import { getAccess, getAllowlist, isOwnerEmail, setAllowlist, setApproved, setRejected } from "@/lib/access";
 
 async function denyUnlessOwner(): Promise<Response | null> {
   const access = await getAccess();
@@ -24,10 +24,24 @@ export async function GET() {
       name: [u.firstName, u.lastName].filter(Boolean).join(" "),
       createdAt: u.createdAt,
       approved: u.publicMetadata.approved === true,
+      rejected: u.publicMetadata.rejected === true,
       owner: email !== "" && isOwnerEmail(email),
     };
   });
   return Response.json({ users, allowlist });
+}
+
+// The user an owner request targets, or an error Response when it is missing or is the owner.
+async function targetUser(body: { userId?: unknown } | null): Promise<string | Response> {
+  const userId = typeof body?.userId === "string" ? body.userId : "";
+  if (!userId) return Response.json({ error: "userId wajib diisi" }, { status: 400 });
+  const client = await clerkClient();
+  const user = await client.users.getUser(userId).catch(() => null);
+  if (!user) return Response.json({ error: "Pengguna tidak ditemukan" }, { status: 404 });
+  if (isOwnerEmail(user.primaryEmailAddress?.emailAddress ?? "")) {
+    return Response.json({ error: "Akun pemilik tidak bisa diubah" }, { status: 400 });
+  }
+  return userId;
 }
 
 export async function POST(request: Request) {
@@ -35,9 +49,22 @@ export async function POST(request: Request) {
   if (denied) return denied;
 
   const body = await request.json().catch(() => null);
-  const userId = typeof body?.userId === "string" ? body.userId : "";
-  if (!userId) return Response.json({ error: "userId wajib diisi" }, { status: 400 });
-  await setApproved(userId, body.approved === true);
+  const userId = await targetUser(body);
+  if (userId instanceof Response) return userId;
+  if (body.action === "reject") await setRejected(userId);
+  else await setApproved(userId, body.approved === true);
+  return Response.json({ ok: true });
+}
+
+export async function DELETE(request: Request) {
+  const denied = await denyUnlessOwner();
+  if (denied) return denied;
+
+  const body = await request.json().catch(() => null);
+  const userId = await targetUser(body);
+  if (userId instanceof Response) return userId;
+  const client = await clerkClient();
+  await client.users.deleteUser(userId);
   return Response.json({ ok: true });
 }
 

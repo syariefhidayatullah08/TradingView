@@ -8,6 +8,7 @@ type UserRow = {
   name: string;
   createdAt: number;
   approved: boolean;
+  rejected: boolean;
   owner: boolean;
 };
 
@@ -43,13 +44,13 @@ export default function AccessSettings() {
     };
   }, [version]);
 
-  async function approve(userId: string, approved: boolean) {
+  async function change(userId: string, method: "POST" | "DELETE", body: Record<string, unknown> = {}) {
     setBusy(userId);
     try {
       const res = await fetch("/api/admin/users", {
-        method: "POST",
+        method,
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ userId, approved }),
+        body: JSON.stringify({ userId, ...body }),
       });
       if (!res.ok) throw new Error((await res.json()).error ?? `HTTP ${res.status}`);
       reload();
@@ -113,21 +114,53 @@ export default function AccessSettings() {
                       <span className="text-accent-soft">Pemilik</span>
                     ) : u.approved ? (
                       <span className="text-up">Disetujui</span>
+                    ) : u.rejected ? (
+                      <span className="text-down">Ditolak</span>
                     ) : (
                       <span className="text-amber-300">Menunggu</span>
                     )}
                   </td>
                   <td className="px-4 py-2 text-right">
                     {!u.owner && (
-                      <button
-                        disabled={busy === u.id}
-                        onClick={() => approve(u.id, !u.approved)}
-                        className={`rounded px-2.5 py-1 text-xs font-semibold disabled:opacity-50 ${
-                          u.approved ? "border border-line hover:bg-base" : "btn-active text-white hover:opacity-90"
-                        }`}
-                      >
-                        {u.approved ? "Cabut akses" : "Setujui"}
-                      </button>
+                      <span className="inline-flex flex-wrap justify-end gap-1.5">
+                        {u.approved ? (
+                          <button
+                            disabled={busy === u.id}
+                            onClick={() => change(u.id, "POST", { approved: false })}
+                            className="rounded border border-line px-2.5 py-1 text-xs font-semibold hover:bg-base disabled:opacity-50"
+                          >
+                            Cabut akses
+                          </button>
+                        ) : (
+                          <button
+                            disabled={busy === u.id}
+                            onClick={() => change(u.id, "POST", { approved: true })}
+                            className="rounded btn-active px-2.5 py-1 text-xs font-semibold text-white hover:opacity-90 disabled:opacity-50"
+                          >
+                            Setujui
+                          </button>
+                        )}
+                        {!u.rejected && (
+                          <button
+                            disabled={busy === u.id}
+                            onClick={() => change(u.id, "POST", { action: "reject" })}
+                            className="rounded border border-down/50 px-2.5 py-1 text-xs font-semibold text-down hover:bg-down/10 disabled:opacity-50"
+                          >
+                            Tolak
+                          </button>
+                        )}
+                        {u.rejected && (
+                          <button
+                            disabled={busy === u.id}
+                            onClick={() => {
+                              if (window.confirm(`Hapus akun ${u.email} secara permanen?`)) change(u.id, "DELETE");
+                            }}
+                            className="rounded border border-line px-2.5 py-1 text-xs text-muted hover:bg-base hover:text-down disabled:opacity-50"
+                          >
+                            Hapus akun
+                          </button>
+                        )}
+                      </span>
                     )}
                   </td>
                 </tr>

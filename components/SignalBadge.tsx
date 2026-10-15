@@ -1,27 +1,29 @@
 "use client";
 
+import { decide, type Action } from "@/lib/decision";
 import { useLiveCandles } from "@/lib/live-candles";
-import { detectSignals } from "@/lib/signals";
+import { higherTimeframe, type Timeframe } from "@/lib/symbols";
 
-// Latest buy/sell signal of one coin, updated live. Used in the watchlist.
-export default function SignalBadge({ symbol, interval }: { symbol: string; interval: string }) {
-  const live = useLiveCandles(symbol, interval);
-  if (!live.candles) return <span className="text-[11px] text-muted">…</span>;
-  const signals = detectSignals(live.candles);
-  const last = signals[signals.length - 1];
-  if (!last) return <span className="text-[11px] text-muted">—</span>;
-  const price = live.candles[live.candles.length - 1].close;
-  const since = ((price - last.price) / last.price) * 100;
-  const candlesAgo = live.candles.length - 1 - last.index;
+const style: Record<Action, { badge: string; label: string }> = {
+  beli: { badge: "bg-up/15 text-up", label: "BELI" },
+  tunggu: { badge: "bg-amber-300/15 text-amber-300", label: "TUNGGU" },
+  jangan: { badge: "bg-down/15 text-down", label: "JANGAN" },
+};
+
+// One coin's current "Mulai Trading" decision, updated live. Used in the watchlist.
+export default function SignalBadge({ symbol, timeframe }: { symbol: string; timeframe: Timeframe }) {
+  const higherTf = higherTimeframe(timeframe);
+  const live = useLiveCandles(symbol, timeframe.binance);
+  const higher = useLiveCandles(symbol, (higherTf ?? timeframe).binance);
+  if (!live.candles || live.candles.length <= 60) return <span className="text-[11px] text-muted">…</span>;
+  const d = decide(live.candles, higherTf ? higher.candles : null, higherTf?.label ?? null);
+  if (!d) return <span className="text-[11px] text-muted">—</span>;
   return (
-    <span
-      title={`${last.reason} · ${since >= 0 ? "+" : ""}${since.toFixed(2)}% sejak sinyal`}
-      className={`inline-flex items-center gap-1 rounded px-1.5 py-0.5 text-[11px] font-semibold ${
-        last.type === "beli" ? "bg-up/15 text-up" : "bg-down/15 text-down"
-      }`}
-    >
-      {last.type === "beli" ? "▲ BELI" : "▼ JUAL"}
-      <span className="font-normal opacity-70">{candlesAgo === 0 ? "baru" : `${candlesAgo} candle`}</span>
+    <span title={d.headline} className="inline-flex flex-col items-end">
+      <span className={`rounded px-1.5 py-0.5 text-[11px] font-semibold ${style[d.action].badge}`}>
+        {style[d.action].label}
+      </span>
+      <span className="text-[10px] text-muted">yakin {d.confidence}%</span>
     </span>
   );
 }

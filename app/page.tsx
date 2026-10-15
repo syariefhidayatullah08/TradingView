@@ -12,12 +12,21 @@ export default async function Home() {
     return (
       <AuthShell>
         <div className="panel max-w-md p-6 text-center">
-          <h2 className="text-lg font-semibold">Menunggu persetujuan</h2>
-          <p className="mt-2 text-sm text-muted">
-            Akun <span className="font-mono text-fg">{access.email || "Anda"}</span> sudah terdaftar, tetapi
-            hanya pengguna yang disetujui pemilik aplikasi yang bisa masuk. Hubungi pemilik aplikasi, lalu
-            buka kembali halaman ini setelah disetujui.
-          </p>
+          <h2 className="text-lg font-semibold">
+            {access.rejected ? "Akses ditolak" : "Menunggu persetujuan"}
+          </h2>
+          {access.rejected ? (
+            <p className="mt-2 text-sm text-muted">
+              Permintaan akses untuk akun <span className="font-mono text-fg">{access.email || "Anda"}</span>{" "}
+              ditolak oleh pemilik aplikasi.
+            </p>
+          ) : (
+            <p className="mt-2 text-sm text-muted">
+              Akun <span className="font-mono text-fg">{access.email || "Anda"}</span> sudah terdaftar, tetapi
+              hanya pengguna yang disetujui pemilik aplikasi yang bisa masuk. Hubungi pemilik aplikasi, lalu
+              buka kembali halaman ini setelah disetujui.
+            </p>
+          )}
           <div className="mt-4">
             <SignOutButton>
               <button className="rounded border border-line px-3 py-1.5 text-xs font-medium hover:bg-base">
