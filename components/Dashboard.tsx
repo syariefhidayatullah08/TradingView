@@ -19,10 +19,13 @@ import SignalsOverview from "./SignalsOverview";
 import StartTrading from "./StartTrading";
 import TokocryptoCard from "./TokocryptoCard";
 import TradeAlerts from "./TradeAlerts";
+import ThemeSwitcher from "./ThemeSwitcher";
 import TVWidget from "./TVWidget";
 import { useAlertsEnabled } from "@/lib/notify";
 import { SANTAI_TIMEFRAME } from "@/lib/santai";
 import { useScan } from "@/lib/scan";
+import { useTheme } from "@/lib/theme";
+import { themeInfo } from "@/lib/theme-config";
 import { useSantai } from "@/lib/use-santai";
 import { COINS, TIMEFRAMES, type Coin, type Timeframe } from "@/lib/symbols";
 
@@ -72,6 +75,7 @@ export default function Dashboard({ isOwner = false }: { isOwner?: boolean }) {
   const [fullscreen, setFullscreen] = useState(false);
   const alertsOn = useAlertsEnabled();
   const santai = useSantai();
+  const chartBg = themeInfo(useTheme()).chartBg;
   // Once the saved settings arrive, open on Mode Santai's 4h candle if it is on.
   const [santaiApplied, setSantaiApplied] = useState(false);
   if (santai.loaded && !santaiApplied) {
@@ -124,6 +128,7 @@ export default function Dashboard({ isOwner = false }: { isOwner?: boolean }) {
         <div className="min-w-0 flex-1 basis-80 overflow-hidden">
           <TVWidget script="ticker-tape" config={TICKER_CONFIG} height={46} />
         </div>
+        <ThemeSwitcher />
         <SantaiToggle onEnable={() => setTimeframe(TIMEFRAMES[SANTAI_TIMEFRAME])} />
         <TradeAlerts rows={scan} timeframe={timeframe} />
         <button
@@ -170,7 +175,7 @@ export default function Dashboard({ isOwner = false }: { isOwner?: boolean }) {
               allow_symbol_change: false,
               hide_side_toolbar: false,
               studies: ["STD;RSI", "STD;MACD"],
-              backgroundColor: "#0d1330",
+              backgroundColor: chartBg,
               gridColor: "rgba(147,197,253,0.08)",
               support_host: "https://www.tradingview.com",
             }}

@@ -243,7 +243,7 @@ function SkyCanvas() {
     };
   }, []);
 
-  return <canvas ref={ref} className="night-canvas" />;
+  return <canvas ref={ref} className="theme-canvas" />;
 }
 
 const BLADES = (() => {
@@ -349,7 +349,7 @@ function Meadow() {
 
 export default function NightBackdrop() {
   return (
-    <div className="night-backdrop" aria-hidden="true">
+    <div className="theme-backdrop" aria-hidden="true">
       <SkyCanvas />
       <Meadow />
       {FIREFLIES.map((f, i) => (

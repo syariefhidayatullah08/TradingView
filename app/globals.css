@@ -1,17 +1,151 @@
 @import "tailwindcss";
 
 @theme inline {
-  --color-base: rgba(8, 12, 38, 0.55);
-  --color-panel: #0f1533;
-  --color-line: rgba(147, 197, 253, 0.16);
-  --color-fg: #e6ecff;
-  --color-muted: #8ea0c9;
-  --color-up: #34d399;
-  --color-down: #fb7185;
-  --color-accent: #818cf8;
-  --color-accent-soft: #a5b4fc;
+  --color-base: var(--t-base);
+  --color-panel: var(--t-panel);
+  --color-line: var(--t-line);
+  --color-fg: var(--t-fg);
+  --color-muted: var(--t-muted);
+  --color-up: var(--t-up);
+  --color-down: var(--t-down);
+  --color-accent: var(--t-accent);
+  --color-accent-soft: var(--t-accent-soft);
   --font-sans: var(--font-geist-sans);
   --font-mono: var(--font-geist-mono);
+}
+
+/* ---------- Themes (listed in lib/theme-config.ts, set as html[data-theme]) ---------- */
+
+/* Malam Berbintang: the default. */
+:root {
+  --t-base: rgba(8, 12, 38, 0.55);
+  --t-panel: #0f1533;
+  --t-line: rgba(147, 197, 253, 0.16);
+  --t-fg: #e6ecff;
+  --t-muted: #8ea0c9;
+  --t-up: #34d399;
+  --t-down: #fb7185;
+  --t-accent: #818cf8;
+  --t-accent-soft: #a5b4fc;
+  --t-bg: #050818;
+  --t-bg-image: linear-gradient(180deg, #03051a 0%, #0a1040 45%, #1b1f5c 75%, #2b2a6e 100%);
+  --t-panel-bg: rgba(12, 17, 48, 0.62);
+  --t-panel-blur: blur(14px) saturate(140%);
+  --t-panel-border: rgba(165, 180, 252, 0.18);
+  --t-panel-border-hover: rgba(165, 180, 252, 0.4);
+  --t-panel-radius: 16px;
+  --t-panel-shadow: 0 1px 0 rgba(255, 255, 255, 0.05) inset, 0 12px 32px rgba(2, 4, 18, 0.45);
+  --t-panel-glow: 0 0 28px rgba(129, 140, 248, 0.15);
+  --t-header-bg: linear-gradient(90deg, rgba(129, 140, 248, 0.14), rgba(56, 189, 248, 0.06) 60%, transparent);
+  --t-header-border: rgba(165, 180, 252, 0.14);
+  --t-h2-mark: "✦ ";
+  --t-h2-mark-color: #fde68a;
+  --t-btn-bg: linear-gradient(120deg, #6366f1, #38bdf8, #a78bfa, #6366f1);
+  --t-btn-shadow: rgba(99, 102, 241, 0.4);
+  --t-btn-radius: 999px;
+  --t-brand-bg: linear-gradient(90deg, #c7d2fe, #7dd3fc, #fde68a, #c7d2fe);
+  --t-brand-mark: " ☾";
+  --t-brand-mark-color: #fde68a;
+  --t-scroll: rgba(129, 140, 248, 0.35);
+}
+
+/* Trading Pro: neutral charcoal terminal, sharp corners, amber accent. */
+html[data-theme="pro"] {
+  --t-base: rgba(22, 27, 36, 0.75);
+  --t-panel: #0f131a;
+  --t-line: rgba(148, 163, 184, 0.14);
+  --t-fg: #e5e7eb;
+  --t-muted: #8b95a5;
+  --t-up: #22c55e;
+  --t-down: #ef4444;
+  --t-accent: #f59e0b;
+  --t-accent-soft: #fbbf24;
+  --t-bg: #07090d;
+  --t-bg-image: linear-gradient(180deg, #06080c 0%, #0b0f16 100%);
+  --t-panel-bg: rgba(13, 17, 23, 0.9);
+  --t-panel-blur: blur(6px);
+  --t-panel-border: rgba(148, 163, 184, 0.16);
+  --t-panel-border-hover: rgba(245, 158, 11, 0.45);
+  --t-panel-radius: 6px;
+  --t-panel-shadow: 0 8px 24px rgba(0, 0, 0, 0.5);
+  --t-panel-glow: 0 0 0 1px rgba(245, 158, 11, 0.12);
+  --t-header-bg: linear-gradient(90deg, rgba(245, 158, 11, 0.08), transparent 70%);
+  --t-header-border: rgba(148, 163, 184, 0.14);
+  --t-h2-mark: "▍";
+  --t-h2-mark-color: #f59e0b;
+  --t-btn-bg: linear-gradient(120deg, #b45309, #f59e0b, #b45309);
+  --t-btn-shadow: rgba(245, 158, 11, 0.25);
+  --t-btn-radius: 4px;
+  --t-brand-bg: linear-gradient(90deg, #f8fafc, #fbbf24, #f8fafc);
+  --t-brand-mark: " ▲";
+  --t-brand-mark-color: #22c55e;
+  --t-scroll: rgba(148, 163, 184, 0.3);
+}
+
+/* Pegunungan: calm green valley by day, deep forest-glass panels. */
+html[data-theme="gunung"] {
+  --t-base: rgba(4, 26, 20, 0.5);
+  --t-panel: #0c2a22;
+  --t-line: rgba(167, 243, 208, 0.16);
+  --t-fg: #ecfdf5;
+  --t-muted: #9cc5b3;
+  --t-up: #4ade80;
+  --t-down: #fb7185;
+  --t-accent: #34d399;
+  --t-accent-soft: #6ee7b7;
+  --t-bg: #9fd3e8;
+  --t-bg-image: linear-gradient(180deg, #7ec4e6 0%, #bfe3ef 45%, #e8f3e4 70%, #cfe6c2 100%);
+  --t-panel-bg: rgba(8, 36, 28, 0.74);
+  --t-panel-blur: blur(16px) saturate(130%);
+  --t-panel-border: rgba(167, 243, 208, 0.22);
+  --t-panel-border-hover: rgba(167, 243, 208, 0.45);
+  --t-panel-radius: 18px;
+  --t-panel-shadow: 0 1px 0 rgba(255, 255, 255, 0.06) inset, 0 12px 32px rgba(4, 30, 22, 0.35);
+  --t-panel-glow: 0 0 28px rgba(52, 211, 153, 0.18);
+  --t-header-bg: linear-gradient(90deg, rgba(52, 211, 153, 0.16), rgba(250, 204, 21, 0.06) 60%, transparent);
+  --t-header-border: rgba(167, 243, 208, 0.16);
+  --t-h2-mark: "❀ ";
+  --t-h2-mark-color: #fde68a;
+  --t-btn-bg: linear-gradient(120deg, #059669, #34d399, #a3e635, #059669);
+  --t-btn-shadow: rgba(16, 185, 129, 0.35);
+  --t-btn-radius: 999px;
+  --t-brand-bg: linear-gradient(90deg, #d1fae5, #a7f3d0, #fef08a, #d1fae5);
+  --t-brand-mark: " ⛰";
+  --t-brand-mark-color: #bbf7d0;
+  --t-scroll: rgba(52, 211, 153, 0.4);
+}
+
+/* Anime Ninja: village at dusk, warm orange accents. */
+html[data-theme="ninja"] {
+  --t-base: rgba(30, 10, 30, 0.55);
+  --t-panel: #1f1028;
+  --t-line: rgba(253, 186, 116, 0.18);
+  --t-fg: #fff1e6;
+  --t-muted: #d4a99a;
+  --t-up: #4ade80;
+  --t-down: #f87171;
+  --t-accent: #fb923c;
+  --t-accent-soft: #fdba74;
+  --t-bg: #2a1033;
+  --t-bg-image: linear-gradient(180deg, #3b1a5a 0%, #b23a62 38%, #f2784b 62%, #ffb36b 78%, #3a1830 100%);
+  --t-panel-bg: rgba(28, 12, 34, 0.74);
+  --t-panel-blur: blur(12px) saturate(130%);
+  --t-panel-border: rgba(253, 186, 116, 0.24);
+  --t-panel-border-hover: rgba(251, 146, 60, 0.55);
+  --t-panel-radius: 10px;
+  --t-panel-shadow: 0 12px 32px rgba(20, 5, 20, 0.5);
+  --t-panel-glow: 0 0 26px rgba(251, 146, 60, 0.22);
+  --t-header-bg: linear-gradient(90deg, rgba(251, 146, 60, 0.2), rgba(244, 63, 94, 0.08) 60%, transparent);
+  --t-header-border: rgba(253, 186, 116, 0.18);
+  --t-h2-mark: "✴ ";
+  --t-h2-mark-color: #fb923c;
+  --t-btn-bg: linear-gradient(120deg, #ea580c, #f97316, #f43f5e, #ea580c);
+  --t-btn-shadow: rgba(249, 115, 22, 0.4);
+  --t-btn-radius: 8px;
+  --t-brand-bg: linear-gradient(90deg, #fed7aa, #fb923c, #fde68a, #fed7aa);
+  --t-brand-mark: " ✦";
+  --t-brand-mark-color: #fde68a;
+  --t-scroll: rgba(251, 146, 60, 0.4);
 }
 
 html {
@@ -20,15 +154,14 @@ html {
 
 body {
   color: var(--color-fg);
-  background: #050818;
-  background-image: linear-gradient(180deg, #03051a 0%, #0a1040 45%, #1b1f5c 75%, #2b2a6e 100%);
+  background: var(--t-bg);
+  background-image: var(--t-bg-image);
   background-attachment: fixed;
   overflow-x: hidden;
 }
 
-/* ---------- Live night sky ---------- */
-
-.night-backdrop {
+/* Every theme's live backdrop sits in this fixed layer behind the app. */
+.theme-backdrop {
   position: fixed;
   inset: 0;
   z-index: -1;
@@ -36,12 +169,22 @@ body {
   pointer-events: none;
 }
 
-.night-canvas {
+.theme-canvas {
   position: absolute;
   inset: 0;
   width: 100%;
   height: 100%;
 }
+
+.theme-scene {
+  position: absolute;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  width: 100%;
+}
+
+/* ---------- Malam: live night sky ---------- */
 
 .night-meadow {
   position: absolute;
@@ -212,14 +355,12 @@ body {
 
 @layer components {
   .panel {
-    background: rgba(12, 17, 48, 0.62);
-    backdrop-filter: blur(14px) saturate(140%);
-    -webkit-backdrop-filter: blur(14px) saturate(140%);
-    border: 1px solid rgba(165, 180, 252, 0.18);
-    border-radius: 16px;
-    box-shadow:
-      0 1px 0 rgba(255, 255, 255, 0.05) inset,
-      0 12px 32px rgba(2, 4, 18, 0.45);
+    background: var(--t-panel-bg);
+    backdrop-filter: var(--t-panel-blur);
+    -webkit-backdrop-filter: var(--t-panel-blur);
+    border: 1px solid var(--t-panel-border);
+    border-radius: var(--t-panel-radius);
+    box-shadow: var(--t-panel-shadow);
     animation: fade-up 0.45s ease both;
     transition:
       border-color 0.25s ease,
@@ -227,11 +368,8 @@ body {
   }
 
   .panel:hover {
-    border-color: rgba(165, 180, 252, 0.4);
-    box-shadow:
-      0 1px 0 rgba(255, 255, 255, 0.06) inset,
-      0 16px 40px rgba(2, 4, 18, 0.55),
-      0 0 28px rgba(129, 140, 248, 0.15);
+    border-color: var(--t-panel-border-hover);
+    box-shadow: var(--t-panel-shadow), var(--t-panel-glow);
   }
 
   .panel-header {
@@ -239,9 +377,9 @@ body {
     align-items: center;
     justify-content: space-between;
     padding: 10px 16px;
-    border-bottom: 1px solid rgba(165, 180, 252, 0.14);
-    background: linear-gradient(90deg, rgba(129, 140, 248, 0.14), rgba(56, 189, 248, 0.06) 60%, transparent);
-    border-radius: 16px 16px 0 0;
+    border-bottom: 1px solid var(--t-header-border);
+    background: var(--t-header-bg);
+    border-radius: var(--t-panel-radius) var(--t-panel-radius) 0 0;
   }
 
   .panel-header h2 {
@@ -251,19 +389,19 @@ body {
   }
 
   .panel-header h2::before {
-    content: "✦ ";
-    color: #fde68a;
+    content: var(--t-h2-mark);
+    color: var(--t-h2-mark-color);
   }
 
   /* Active tab / primary button: twilight gradient with a soft glow. */
   .btn-active {
     color: #fff;
-    background: linear-gradient(120deg, #6366f1, #38bdf8, #a78bfa, #6366f1);
+    background: var(--t-btn-bg);
     background-size: 200% 100%;
     animation: shine 7s linear infinite;
-    border-radius: 999px;
+    border-radius: var(--t-btn-radius);
     box-shadow:
-      0 4px 16px rgba(99, 102, 241, 0.4),
+      0 4px 16px var(--t-btn-shadow),
       0 0 0 1px rgba(255, 255, 255, 0.12) inset;
     transition:
       transform 0.15s ease,
@@ -273,13 +411,13 @@ body {
   .btn-active:hover {
     transform: translateY(-1px);
     box-shadow:
-      0 6px 20px rgba(99, 102, 241, 0.5),
+      0 6px 20px var(--t-btn-shadow),
       0 0 0 1px rgba(255, 255, 255, 0.16) inset;
   }
 
   /* Animated gradient brand text. */
   .brand {
-    background: linear-gradient(90deg, #c7d2fe, #7dd3fc, #fde68a, #c7d2fe);
+    background: var(--t-brand-bg);
     background-size: 300% 100%;
     -webkit-background-clip: text;
     background-clip: text;
@@ -288,9 +426,9 @@ body {
   }
 
   .brand::after {
-    content: " ☾";
-    color: #fde68a;
-    -webkit-text-fill-color: #fde68a;
+    content: var(--t-brand-mark);
+    color: var(--t-brand-mark-color);
+    -webkit-text-fill-color: var(--t-brand-mark-color);
   }
 }
 
@@ -310,7 +448,7 @@ a {
 }
 
 ::-webkit-scrollbar-thumb {
-  background: rgba(129, 140, 248, 0.35);
+  background: var(--t-scroll);
   border-radius: 999px;
   border: 2px solid transparent;
   background-clip: padding-box;
@@ -320,11 +458,136 @@ a {
   background: transparent;
 }
 
+/* ---------- Pegunungan ---------- */
+
+.mtn-sun {
+  animation: sun-breathe 8s ease-in-out infinite alternate;
+  transform-box: fill-box;
+  transform-origin: center;
+}
+
+@keyframes sun-breathe {
+  from {
+    scale: 0.94;
+    opacity: 0.85;
+  }
+  to {
+    scale: 1.06;
+    opacity: 1;
+  }
+}
+
+/* Clouds cross the whole scene (viewBox units), each at its own pace. */
+.mtn-cloud,
+.nj-cloud {
+  animation: drift 150s linear infinite;
+}
+
+@keyframes drift {
+  from {
+    transform: translateX(-620px);
+  }
+  to {
+    transform: translateX(1640px);
+  }
+}
+
+.mtn-mist {
+  animation: mist 26s ease-in-out infinite alternate;
+}
+
+.mtn-mist-slow {
+  animation-duration: 38s;
+  animation-direction: alternate-reverse;
+}
+
+@keyframes mist {
+  from {
+    transform: translateX(-120px);
+  }
+  to {
+    transform: translateX(120px);
+  }
+}
+
+.mtn-grass path {
+  stroke: #2f6f37;
+  stroke-width: 2.4;
+}
+
+.mtn-flower {
+  animation: sway 4.5s ease-in-out infinite alternate;
+  transform-box: fill-box;
+  transform-origin: bottom center;
+}
+
+/* ---------- Anime Ninja ---------- */
+
+.nj-glow {
+  animation: sun-breathe 6s ease-in-out infinite alternate;
+  transform-box: fill-box;
+  transform-origin: center;
+}
+
+.nj-lantern {
+  animation: flicker 2.6s ease-in-out infinite;
+}
+
+@keyframes flicker {
+  0%,
+  100% {
+    opacity: 1;
+  }
+  45% {
+    opacity: 0.7;
+  }
+  55% {
+    opacity: 0.95;
+  }
+  70% {
+    opacity: 0.6;
+  }
+}
+
+.ninja {
+  filter: drop-shadow(0 0 6px rgba(255, 150, 80, 0.45));
+}
+
+.ninja-body {
+  fill: #1a0a1e;
+  stroke: rgba(255, 170, 110, 0.75);
+  stroke-width: 1.4;
+  stroke-linejoin: round;
+}
+
+.ninja-scarf {
+  fill: #c2264a;
+  stroke: rgba(255, 190, 140, 0.6);
+  stroke-width: 1;
+}
+
+.ninja-band {
+  fill: #23305e;
+}
+
+.ninja-plate {
+  fill: #c9d1dc;
+  stroke: #7c8796;
+  stroke-width: 0.8;
+}
+
 @media (prefers-reduced-motion: reduce) {
   .grass path,
   .sleeper > path:first-of-type,
   .sleeper-shirt,
   .firefly,
+  .mtn-sun,
+  .mtn-cloud,
+  .mtn-mist,
+  .mtn-flower,
+  .nj-cloud,
+  .nj-glow,
+  .nj-lantern,
   .panel,
   .btn-active,
   .brand {

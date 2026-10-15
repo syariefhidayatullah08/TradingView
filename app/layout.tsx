@@ -1,6 +1,7 @@
 import type { Metadata, Viewport } from "next";
 import { ClerkProvider } from "@clerk/nextjs";
-import NightBackdrop from "@/components/NightBackdrop";
+import ThemeBackdrop from "@/components/ThemeBackdrop";
+import { THEME_BOOT_SCRIPT } from "@/lib/theme-config";
 import { dark } from "@clerk/ui/themes";
 import { idID } from "@clerk/localizations";
 import { Geist, Geist_Mono } from "next/font/google";
@@ -31,9 +32,14 @@ export default function RootLayout({ children }: LayoutProps<"/">) {
     <html
       lang="id"
       className={`${geistSans.variable} ${geistMono.variable} h-full antialiased`}
+      // The boot script sets data-theme before React hydrates.
+      suppressHydrationWarning
     >
+      <head>
+        <script dangerouslySetInnerHTML={{ __html: THEME_BOOT_SCRIPT }} />
+      </head>
       <body className="min-h-full flex flex-col font-sans">
-        <NightBackdrop />
+        <ThemeBackdrop />
         <ClerkProvider
           localization={idID}
           appearance={{
