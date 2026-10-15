@@ -4,7 +4,9 @@ import { useEffect, useState } from "react";
 import { advise, MARKET_INTERVAL, MARKET_SYMBOL } from "@/lib/advice";
 import type { Action } from "@/lib/decision";
 import { useLiveCandles } from "@/lib/live-candles";
-import { netTargetPrice, type Position } from "@/lib/positions";
+import { netTargetPrice, type ClosedTrade, type Mood, type Position } from "@/lib/positions";
+import { applyLock, riskSizedUsdt, weeklyLock } from "@/lib/risk";
+import JournalFields from "./JournalFields";
 import { partUsdt } from "@/lib/santai";
 import { useSantai } from "@/lib/use-santai";
 import { formatPrice, higherTimeframe, tokocryptoUrl, type Coin, type Timeframe } from "@/lib/symbols";
@@ -36,13 +38,19 @@ function TradingDecision({ coin, timeframe, onClose }: { coin: Coin; timeframe: 
   const { settings: santai, idrPerUsdt } = useSantai();
   // Open positions, for Mode Santai's one-per-coin and capital-parts limits.
   const [open, setOpen] = useState<Position[] | null>(null);
+  const [trades, setTrades] = useState<ClosedTrade[] | null>(null);
+  const [loadedAt, setLoadedAt] = useState(0);
+  const [mood, setMood] = useState<Mood | undefined>();
 
   useEffect(() => {
     let cancelled = false;
     fetch("/api/positions")
       .then((res) => (res.ok ? res.json() : null))
       .then((json) => {
-        if (!cancelled && json) setOpen(json.positions);
+        if (cancelled || !json) return;
+        setOpen(json.positions);
+        setTrades(json.trades ?? []);
+        setLoadedAt(Date.now());
       })
       .catch(() => {});
     return () => {
@@ -50,14 +58,24 @@ function TradingDecision({ coin, timeframe, onClose }: { coin: Coin; timeframe: 
     };
   }, []);
 
-  const decision =
+  const capitalUsdt = idrPerUsdt ? santai.capitalIdr / idrPerUsdt : null;
+  // Weekly loss brake from the risk manager.
+  const lock = trades && capitalUsdt ? weeklyLock(trades, capitalUsdt, santai, loadedAt) : null;
+  const advised =
     live.candles && live.candles.length > 60
       ? advise(live.candles, higherTf ? higher.candles : null, higherTf?.label ?? null, coin.symbol, santai, btc.candles, open)
       : null;
+  const decision = advised && applyLock(advised, lock);
   // Mode Santai sizing: one equal part of the budget, sold at a fixed net profit.
   const usdtPerPart = santai.enabled && idrPerUsdt ? partUsdt(santai, idrPerUsdt) : null;
   const santaiTarget = santai.enabled && decision ? netTargetPrice(decision.price, santai.targetPct) : null;
-  const suggestedAmount = usdtPerPart && decision ? usdtPerPart / decision.price : null;
+  // Outside Mode Santai, size the buy so a stop-loss hit costs riskPct of capital.
+  const riskUsdt =
+    !santai.enabled && capitalUsdt && decision?.plan
+      ? riskSizedUsdt(capitalUsdt, decision.price, decision.plan.stop, santai.riskPct)
+      : null;
+  const buyUsdt = usdtPerPart ?? riskUsdt;
+  const suggestedAmount = buyUsdt && decision ? buyUsdt / decision.price : null;
 
   async function record() {
     if (!decision?.plan) return;
@@ -79,6 +97,8 @@ function TradingDecision({ coin, timeframe, onClose }: { coin: Coin; timeframe: 
         target1: santaiTarget ?? decision.plan.target1,
         target2: santaiTarget ?? decision.plan.target2,
         ...(santaiTarget && santai.trailing ? { trail: true } : {}),
+        why: "saran",
+        ...(mood ? { mood } : {}),
       };
       const res = await fetch("/api/positions", {
         method: "PUT",
@@ -209,6 +229,14 @@ function TradingDecision({ coin, timeframe, onClose }: { coin: Coin; timeframe: 
                   Potensi untung ke target 1 = {decision.riskReward.toFixed(1)}× risiko ke stop loss
                 </div>
               )}
+              {riskUsdt && idrPerUsdt && (
+                <div className="mt-2 rounded border border-line p-2 text-xs">
+                  <b>Ukuran posisi (manajer risiko):</b> beli ${riskUsdt.toFixed(2)} ≈ Rp{" "}
+                  {Math.round(riskUsdt * idrPerUsdt).toLocaleString("id-ID")}. Jika kena stop loss, rugi sekitar $
+                  {((riskUsdt * (decision.price - decision.plan.stop)) / decision.price).toFixed(2)} ({santai.riskPct}% dari
+                  modal Rp {santai.capitalIdr.toLocaleString("id-ID")}).
+                </div>
+              )}
             </div>
           )}
 
@@ -220,6 +248,9 @@ function TradingDecision({ coin, timeframe, onClose }: { coin: Coin; timeframe: 
                 </div>
               ) : (
                 <div className="flex flex-wrap items-end gap-2">
+                  <div className="w-48">
+                    <JournalFields mood={mood} onMood={setMood} />
+                  </div>
                   <label className="text-[11px] text-muted">
                     Jumlah {coin.base} (opsional)
                     <input

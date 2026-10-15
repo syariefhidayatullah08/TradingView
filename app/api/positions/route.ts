@@ -1,14 +1,14 @@
 import { clerkClient } from "@clerk/nextjs/server";
 import { getAccess } from "@/lib/access";
-import type { ClosedTrade, Position } from "@/lib/positions";
+import { isMood, isWhy, type ClosedTrade, type Position } from "@/lib/positions";
 import { COINS } from "@/lib/symbols";
 
 // Clerk metadata is capped at 8 KB per user, so both lists are bounded and
 // closed trades are stored as compact arrays.
 const MAX_POSITIONS = 15;
-const MAX_TRADES = 50;
+const MAX_TRADES = 40;
 
-type CompactTrade = [string, string, number, number, number | null, number, number, string];
+type CompactTrade = [string, string, number, number, number | null, number, number, string, string?, string?];
 
 async function requireUser(): Promise<{ userId: string } | Response> {
   const access = await getAccess();
@@ -52,6 +52,8 @@ function sanitizePositions(raw: unknown): Position[] {
       target1,
       target2,
       ...(p.trail === true ? { trail: true } : {}),
+      ...(isWhy(p.why) ? { why: p.why } : {}),
+      ...(isMood(p.mood) ? { mood: p.mood } : {}),
     });
   }
   return out;
@@ -73,6 +75,8 @@ function sanitizeTrades(raw: unknown): ClosedTrade[] {
       amount: num(t.amount),
       exitPrice,
       exitTime: num(t.exitTime) ?? Date.now(),
+      ...(isWhy(t.why) ? { why: t.why } : {}),
+      ...(isMood(t.mood) ? { mood: t.mood } : {}),
     });
   }
   // Keep the most recent trades when the list overflows.
@@ -80,7 +84,9 @@ function sanitizeTrades(raw: unknown): ClosedTrade[] {
 }
 
 function compact(t: ClosedTrade): CompactTrade {
-  return [t.symbol, t.interval, t.entryPrice, t.entryTime, t.amount, t.exitPrice, t.exitTime, t.id];
+  const row: CompactTrade = [t.symbol, t.interval, t.entryPrice, t.entryTime, t.amount, t.exitPrice, t.exitTime, t.id];
+  if (t.why || t.mood) row.push(t.why ?? "", t.mood ?? "");
+  return row;
 }
 
 function expand(raw: unknown): ClosedTrade[] {
@@ -88,7 +94,7 @@ function expand(raw: unknown): ClosedTrade[] {
   return sanitizeTrades(
     raw.map((r) =>
       Array.isArray(r)
-        ? { symbol: r[0], interval: r[1], entryPrice: r[2], entryTime: r[3], amount: r[4], exitPrice: r[5], exitTime: r[6], id: r[7] }
+        ? { symbol: r[0], interval: r[1], entryPrice: r[2], entryTime: r[3], amount: r[4], exitPrice: r[5], exitTime: r[6], id: r[7], why: r[8], mood: r[9] }
         : null,
     ),
   );

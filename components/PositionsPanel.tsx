@@ -8,10 +8,15 @@ import {
   planLevels,
   type ClosedTrade,
   type ExitMode,
+  type Mood,
   type Position,
+  type Why,
   type Verdict,
 } from "@/lib/positions";
+import JournalFields from "./JournalFields";
 import TradeReport from "./TradeReport";
+import { weeklyLock } from "@/lib/risk";
+import { useSantai } from "@/lib/use-santai";
 import {
   COINS,
   formatPrice,
@@ -280,6 +285,8 @@ function NewPositionForm({
   const [mode, setMode] = useState<ExitMode>("untung");
   const [entry, setEntry] = useState("");
   const [amount, setAmount] = useState("");
+  const [why, setWhy] = useState<Why | undefined>();
+  const [mood, setMood] = useState<Mood | undefined>();
   const live = useLiveCandles(symbol, interval);
   const current = live.candles
     ? live.candles[live.candles.length - 1].close
@@ -302,9 +309,13 @@ function NewPositionForm({
       stop: levels.stop,
       target1: levels.target1,
       target2: levels.target2,
+      ...(why ? { why } : {}),
+      ...(mood ? { mood } : {}),
     });
     setEntry("");
     setAmount("");
+    setWhy(undefined);
+    setMood(undefined);
   }
 
   const rr =
@@ -382,6 +393,9 @@ function NewPositionForm({
           />
         </label>
       </div>
+      <div className="grid gap-2 sm:grid-cols-2">
+        <JournalFields why={why} mood={mood} onWhy={setWhy} onMood={setMood} />
+      </div>
 
       {levels && entryPrice ? (
         <div className="flex flex-wrap items-center justify-between gap-2 text-xs">
@@ -446,6 +460,9 @@ export default function PositionsPanel({
   const [positions, setPositions] = useState<Position[] | null>(null);
   const [trades, setTrades] = useState<ClosedTrade[]>([]);
   const [error, setError] = useState<string | null>(null);
+  const { settings, idrPerUsdt } = useSantai();
+  const [now] = useState(() => Date.now());
+  const lock = idrPerUsdt ? weeklyLock(trades, settings.capitalIdr / idrPerUsdt, settings, now) : null;
 
   useEffect(() => {
     let cancelled = false;
@@ -498,6 +515,8 @@ export default function PositionsPanel({
       amount: p.amount,
       exitPrice,
       exitTime: stampNew().entryTime,
+      why: p.why,
+      mood: p.mood,
     };
     save(
       (positions ?? []).filter((x) => x.id !== p.id),
@@ -515,6 +534,12 @@ export default function PositionsPanel({
           </span>
         </header>
         <div className="flex flex-col gap-3 p-3">
+          {lock && (
+            <p className="rounded border border-amber-300/40 bg-amber-300/10 px-3 py-2 text-xs text-amber-300">
+              Rem darurat aktif: rugi minggu ini {lock.lossPct.toFixed(1)}% modal (batas {lock.limitPct}%). Mulai Trading
+              tidak akan menyarankan BELI sampai Senin. Istirahat dulu dan evaluasi jurnal Anda.
+            </p>
+          )}
           {error && (
             <p className="rounded border border-down/40 bg-down/10 px-3 py-2 text-xs text-down">
               {error}

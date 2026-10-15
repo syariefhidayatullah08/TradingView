@@ -1,6 +1,6 @@
 "use client";
 
-import { buildReport, tradeResult, weeklyReport, type ClosedTrade } from "@/lib/positions";
+import { buildReport, disciplineReport, tradeResult, weeklyReport, type ClosedTrade, type GroupStat } from "@/lib/positions";
 import { COINS, formatPrice } from "@/lib/symbols";
 
 function when(time: number): string {
@@ -11,6 +11,74 @@ function when(time: number): string {
 
 function usd(n: number): string {
   return `${n < 0 ? "-" : ""}$${Math.abs(n).toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
+}
+
+function pctText(n: number | null): string {
+  return n === null ? "—" : `${n >= 0 ? "+" : ""}${n.toFixed(2)}%`;
+}
+
+function GroupTable({ title, rows }: { title: string; rows: GroupStat[] }) {
+  return (
+    <div>
+      <div className="mb-1 text-[11px] text-muted">{title}</div>
+      <table className="w-full text-xs">
+        <tbody>
+          {rows.map((g) => (
+            <tr key={g.key} className="border-t border-line">
+              <td className="py-1">{g.label}</td>
+              <td className="py-1 text-right font-mono text-muted">{g.count}×</td>
+              <td className="py-1 text-right font-mono">menang {Math.round(g.winRate)}%</td>
+              <td className={`py-1 text-right font-mono ${g.avgPct >= 0 ? "text-up" : "text-down"}`}>{pctText(g.avgPct)}</td>
+            </tr>
+          ))}
+        </tbody>
+      </table>
+    </div>
+  );
+}
+
+// Journal review: how disciplined trades did compared with impulsive ones.
+function DisciplineCard({ trades }: { trades: ClosedTrade[] }) {
+  const d = disciplineReport(trades);
+  const advice = d.byWhy.find((g) => g.key === "saran");
+  const impulsive = d.byWhy.filter((g) => g.key !== "saran");
+  return (
+    <div className="flex flex-col gap-3 rounded bg-base p-3">
+      <div className="text-[11px] uppercase tracking-wide text-muted">Rapor disiplin (jurnal)</div>
+      <div className="grid grid-cols-2 gap-2 md:grid-cols-4">
+        <div>
+          <div className="text-[11px] text-muted">Rata-rata saat untung</div>
+          <div className="font-mono text-up">{pctText(d.avgWinPct)}</div>
+        </div>
+        <div>
+          <div className="text-[11px] text-muted">Rata-rata saat rugi</div>
+          <div className="font-mono text-down">{pctText(d.avgLossPct)}</div>
+        </div>
+        <div>
+          <div className="text-[11px] text-muted">Profit factor</div>
+          <div className={`font-mono ${(d.profitFactor ?? 0) >= 1 ? "text-up" : "text-down"}`}>
+            {d.profitFactor === null ? "—" : d.profitFactor.toFixed(2)}
+          </div>
+        </div>
+        <div>
+          <div className="text-[11px] text-muted">Nilai rata-rata per trade</div>
+          <div className={`font-mono ${(d.expectancyPct ?? 0) >= 0 ? "text-up" : "text-down"}`}>{pctText(d.expectancyPct)}</div>
+        </div>
+      </div>
+      {d.byWhy.length > 0 && <GroupTable title="Menurut alasan beli" rows={d.byWhy} />}
+      {d.byMood.length > 0 && <GroupTable title="Menurut perasaan saat beli" rows={d.byMood} />}
+      {advice && impulsive.some((g) => g.avgPct < advice.avgPct) && (
+        <p className="text-xs text-up">Trade yang mengikuti saran aplikasi hasilnya lebih baik daripada keputusan sendiri. Pertahankan disiplin ini.</p>
+      )}
+      {advice && impulsive.some((g) => g.avgPct > advice.avgPct && g.count >= 3) && (
+        <p className="text-xs text-muted">Keputusan sendiri Anda sejauh ini lebih baik daripada saran aplikasi. Tetap catat jurnalnya agar terbukti konsisten.</p>
+      )}
+      {d.byWhy.length === 0 && (
+        <p className="text-xs text-muted">Isi alasan dan perasaan saat mencatat pembelian, lalu rapor ini akan menunjukkan kebiasaan mana yang menguntungkan.</p>
+      )}
+      <p className="text-[11px] text-muted">Profit factor di atas 1 berarti total untung lebih besar dari total rugi. Nilai rata-rata per trade positif berarti cara trading Anda menguntungkan dalam jangka panjang.</p>
+    </div>
+  );
 }
 
 export default function TradeReport({
@@ -68,6 +136,8 @@ export default function TradeReport({
             masuk hitungan persentase.
           </p>
         )}
+
+        {trades.length > 0 && <DisciplineCard trades={trades} />}
 
         {weeks.length > 0 && (
           <div>

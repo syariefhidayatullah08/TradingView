@@ -86,8 +86,8 @@ function Form({ settings, idrPerUsdt }: { settings: SantaiSettings; idrPerUsdt: 
     <div className="flex flex-col gap-3 p-4">
       <div className="grid gap-3 sm:grid-cols-3">
         <Field
-          label="Modal (Rp)"
-          hint="Uang dingin yang siap ditahan lama"
+          label="Modal trading (Rp)"
+          hint="Uang dingin; juga dipakai manajer risiko"
           value={capital}
           onChange={(v) => {
             setCapital(v);
@@ -220,5 +220,85 @@ export function StrategySettings() {
         {error && <span className="text-xs text-down">Gagal menyimpan, coba lagi</span>}
       </div>
     </section>
+  );
+}
+
+// Risk manager settings; the capital itself is set in the Mode Santai card.
+export function RiskSettingsPanel() {
+  const { settings, loaded } = useSantai();
+  return (
+    <section className="panel">
+      <header className="panel-header">
+        <h2>Manajemen Risiko</h2>
+        <span className="text-xs text-muted">Modal: Rp {settings.capitalIdr.toLocaleString("id-ID")}</span>
+      </header>
+      {loaded ? <RiskForm settings={settings} /> : <p className="p-4 text-sm text-muted">Memuat…</p>}
+    </section>
+  );
+}
+
+function RiskForm({ settings }: { settings: SantaiSettings }) {
+  const [risk, setRisk] = useState(String(settings.riskPct));
+  const [weekly, setWeekly] = useState(String(settings.weeklyLossPct));
+  const [status, setStatus] = useState<"idle" | "saving" | "saved" | "error">("idle");
+  const riskPct = Number(risk.replace(",", "."));
+  const weeklyLossPct = Number(weekly.replace(",", "."));
+  const valid = riskPct >= 0.25 && riskPct <= 5 && weeklyLossPct >= 1 && weeklyLossPct <= 30;
+
+  async function save() {
+    setStatus("saving");
+    try {
+      await saveSantai({ ...settings, riskPct, weeklyLossPct });
+      setStatus("saved");
+    } catch {
+      setStatus("error");
+    }
+  }
+
+  return (
+    <div className="flex flex-col gap-3 p-4">
+      <div className="grid gap-3 sm:grid-cols-2">
+        <Field
+          label="Risiko per trade (% modal)"
+          hint="Rugi maksimal jika stop loss kena (0,25–5). Trader profesional: 1–2%"
+          value={risk}
+          onChange={(v) => {
+            setRisk(v);
+            setStatus("idle");
+          }}
+        />
+        <Field
+          label="Rem rugi mingguan (% modal)"
+          hint="Jika rugi minggu ini melewati ini, BELI dikunci sampai Senin (1–30)"
+          value={weekly}
+          onChange={(v) => {
+            setWeekly(v);
+            setStatus("idle");
+          }}
+        />
+      </div>
+      {valid && (
+        <p className="text-xs">
+          Rugi maksimal per trade ≈ Rp {Math.round((settings.capitalIdr * riskPct) / 100).toLocaleString("id-ID")}; BELI
+          dikunci setelah rugi ≈ Rp {Math.round((settings.capitalIdr * weeklyLossPct) / 100).toLocaleString("id-ID")}{" "}
+          dalam seminggu.
+        </p>
+      )}
+      <div className="flex items-center gap-3">
+        <button
+          onClick={save}
+          disabled={!valid || status === "saving"}
+          className="rounded btn-active px-3 py-1.5 text-xs font-semibold text-white disabled:opacity-50"
+        >
+          Simpan
+        </button>
+        {status === "saved" && <span className="text-xs text-up">Tersimpan</span>}
+        {status === "error" && <span className="text-xs text-down">Gagal menyimpan</span>}
+      </div>
+      <p className="text-[11px] text-muted">
+        Ukuran posisi dihitung di jendela Mulai Trading (mode normal). Mode Santai memakai pembagian modal rata. Rem
+        mingguan memakai transaksi yang sudah dijual dan dicatat jumlah koinnya.
+      </p>
+    </div>
   );
 }

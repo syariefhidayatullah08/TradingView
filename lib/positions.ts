@@ -20,6 +20,20 @@ export function netPct(entry: number, exit: number): number {
   return ((exit * (1 - FEE_PCT / 100)) / (entry * (1 + FEE_PCT / 100)) - 1) * 100;
 }
 
+// Trading journal: why a buy was made and how it felt, to review discipline later.
+export const WHY = { saran: "Ikut saran BELI aplikasi", sendiri: "Analisa sendiri", fomo: "Ikut-ikutan / takut ketinggalan" } as const;
+export const MOOD = { tenang: "Tenang", ragu: "Ragu-ragu", takut: "Takut ketinggalan", balas: "Ingin balas rugi" } as const;
+export type Why = keyof typeof WHY;
+export type Mood = keyof typeof MOOD;
+
+export function isWhy(v: unknown): v is Why {
+  return typeof v === "string" && v in WHY;
+}
+
+export function isMood(v: unknown): v is Mood {
+  return typeof v === "string" && v in MOOD;
+}
+
 export type Position = {
   id: string;
   symbol: string;
@@ -34,6 +48,8 @@ export type Position = {
   target2: number;
   // Mode Santai with trailing: after target1, ride the rise and sell one ATR below the peak.
   trail?: boolean;
+  why?: Why;
+  mood?: Mood;
 };
 
 export type PlanLevels = {
@@ -340,6 +356,8 @@ export type ClosedTrade = {
   amount: number | null;
   exitPrice: number;
   exitTime: number;
+  why?: Why;
+  mood?: Mood;
 };
 
 export type TradeResult = { pnlPct: number; pnlValue: number | null };
@@ -452,4 +470,50 @@ export function weeklyReport(trades: ClosedTrade[]): WeekSummary[] {
       };
     })
     .sort((a, b) => b.weekStart - a.weekStart);
+}
+
+export type GroupStat = { key: string; label: string; count: number; winRate: number; avgPct: number };
+
+export type Discipline = {
+  byWhy: GroupStat[];
+  byMood: GroupStat[];
+  avgWinPct: number | null;
+  avgLossPct: number | null;
+  // Gross profit over gross loss in %, above 1 means the wins outweigh the losses.
+  profitFactor: number | null;
+  // Average net % per trade: what one more trade is worth on average.
+  expectancyPct: number | null;
+};
+
+function groupBy<K extends string>(trades: ClosedTrade[], pick: (t: ClosedTrade) => K | undefined, labels: Record<K, string>) {
+  const out: GroupStat[] = [];
+  for (const key of Object.keys(labels) as K[]) {
+    const list = trades.filter((t) => pick(t) === key).map((t) => tradeResult(t).pnlPct);
+    if (!list.length) continue;
+    out.push({
+      key,
+      label: labels[key],
+      count: list.length,
+      winRate: (list.filter((p) => p > 0).length / list.length) * 100,
+      avgPct: list.reduce((a, b) => a + b, 0) / list.length,
+    });
+  }
+  return out;
+}
+
+// Journal review: results by reason and mood, and the size of wins versus losses.
+export function disciplineReport(trades: ClosedTrade[]): Discipline {
+  const pcts = trades.map((t) => tradeResult(t).pnlPct);
+  const wins = pcts.filter((p) => p > 0);
+  const losses = pcts.filter((p) => p < 0);
+  const gain = wins.reduce((a, b) => a + b, 0);
+  const pain = -losses.reduce((a, b) => a + b, 0);
+  return {
+    byWhy: groupBy(trades, (t) => t.why, WHY),
+    byMood: groupBy(trades, (t) => t.mood, MOOD),
+    avgWinPct: wins.length ? gain / wins.length : null,
+    avgLossPct: losses.length ? -pain / losses.length : null,
+    profitFactor: pain > 0 ? gain / pain : null,
+    expectancyPct: pcts.length ? pcts.reduce((a, b) => a + b, 0) / pcts.length : null,
+  };
 }

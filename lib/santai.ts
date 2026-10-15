@@ -19,6 +19,16 @@ export type SantaiSettings = {
   sensitive: boolean;
   btcFilter: boolean;
   trailing: boolean;
+  // Only advise buying coins whose recent backtest on this timeframe was profitable.
+  evidenceOnly: boolean;
+  // Risk manager (see lib/risk.ts).
+  riskPct: number;
+  weeklyLossPct: number;
+  // Core holding bought on a schedule (DCA): rupiah per week, weekday (0 = Minggu), BTC share; the rest is ETH.
+  dcaEnabled: boolean;
+  dcaIdr: number;
+  dcaDay: number;
+  dcaBtcPct: number;
 };
 
 export const DEFAULT_SANTAI: SantaiSettings = {
@@ -29,6 +39,13 @@ export const DEFAULT_SANTAI: SantaiSettings = {
   sensitive: false,
   btcFilter: false,
   trailing: true,
+  evidenceOnly: true,
+  riskPct: 1.5,
+  weeklyLossPct: 6,
+  dcaEnabled: false,
+  dcaIdr: 50_000,
+  dcaDay: 1,
+  dcaBtcPct: 70,
 };
 
 export const SANTAI_COINS = ["BTCUSDT", "ETHUSDT", "BNBUSDT"];
@@ -50,6 +67,13 @@ export function sanitizeSantai(raw: unknown): SantaiSettings {
     sensitive: r.sensitive === true,
     btcFilter: r.btcFilter === true,
     trailing: r.trailing !== false,
+    evidenceOnly: r.evidenceOnly !== false,
+    riskPct: clamp(r.riskPct, 0.25, 5, DEFAULT_SANTAI.riskPct),
+    weeklyLossPct: clamp(r.weeklyLossPct, 1, 30, DEFAULT_SANTAI.weeklyLossPct),
+    dcaEnabled: r.dcaEnabled === true,
+    dcaIdr: Math.round(clamp(r.dcaIdr, 10_000, 100_000_000, DEFAULT_SANTAI.dcaIdr)),
+    dcaDay: Math.round(clamp(r.dcaDay, 0, 6, DEFAULT_SANTAI.dcaDay)),
+    dcaBtcPct: Math.round(clamp(r.dcaBtcPct, 0, 100, DEFAULT_SANTAI.dcaBtcPct)),
   };
 }
 
