@@ -16,4 +16,5 @@ jobs:
         env:
           CRON_SECRET: ${{ secrets.CRON_SECRET }}
         run: |
+          if [ -z "$CRON_SECRET" ]; then echo "CRON_SECRET belum diisi, lewati"; exit 0; fi
           curl -fsS --max-time 300 -H "Authorization: Bearer $CRON_SECRET" https://kriptoscope.vercel.app/api/cron/scan

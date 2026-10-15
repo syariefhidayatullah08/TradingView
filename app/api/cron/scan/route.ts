@@ -26,7 +26,8 @@ export async function GET(request: Request) {
   if (!secret || request.headers.get("authorization") !== `Bearer ${secret}`) {
     return new Response("forbidden", { status: 403 });
   }
-  if (!telegramConfigured()) return Response.json({ error: "Telegram belum dikonfigurasi" }, { status: 400 });
+  // Not set up yet: succeed quietly so the schedule does not report failures.
+  if (!telegramConfigured()) return Response.json({ skipped: "Telegram belum dikonfigurasi" });
 
   const client = await clerkClient();
   const { data: users } = await client.users.getUserList({ limit: 200 });
