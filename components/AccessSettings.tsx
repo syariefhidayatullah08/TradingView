@@ -44,11 +44,11 @@ export default function AccessSettings() {
     };
   }, [version]);
 
-  async function change(userId: string, method: "POST" | "DELETE", body: Record<string, unknown> = {}) {
+  async function change(userId: string, body: Record<string, unknown>) {
     setBusy(userId);
     try {
       const res = await fetch("/api/admin/users", {
-        method,
+        method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ userId, ...body }),
       });
@@ -126,7 +126,7 @@ export default function AccessSettings() {
                         {u.approved ? (
                           <button
                             disabled={busy === u.id}
-                            onClick={() => change(u.id, "POST", { approved: false })}
+                            onClick={() => change(u.id, { approved: false })}
                             className="rounded border border-line px-2.5 py-1 text-xs font-semibold hover:bg-base disabled:opacity-50"
                           >
                             Cabut akses
@@ -134,7 +134,7 @@ export default function AccessSettings() {
                         ) : (
                           <button
                             disabled={busy === u.id}
-                            onClick={() => change(u.id, "POST", { approved: true })}
+                            onClick={() => change(u.id, { approved: true })}
                             className="rounded btn-active px-2.5 py-1 text-xs font-semibold text-white hover:opacity-90 disabled:opacity-50"
                           >
                             Setujui
@@ -143,7 +143,7 @@ export default function AccessSettings() {
                         {!u.rejected && (
                           <button
                             disabled={busy === u.id}
-                            onClick={() => change(u.id, "POST", { action: "reject" })}
+                            onClick={() => change(u.id, { action: "reject" })}
                             className="rounded border border-down/50 px-2.5 py-1 text-xs font-semibold text-down hover:bg-down/10 disabled:opacity-50"
                           >
                             Tolak
@@ -152,12 +152,10 @@ export default function AccessSettings() {
                         {u.rejected && (
                           <button
                             disabled={busy === u.id}
-                            onClick={() => {
-                              if (window.confirm(`Hapus akun ${u.email} secara permanen?`)) change(u.id, "DELETE");
-                            }}
-                            className="rounded border border-line px-2.5 py-1 text-xs text-muted hover:bg-base hover:text-down disabled:opacity-50"
+                            onClick={() => change(u.id, { approved: false })}
+                            className="rounded border border-line px-2.5 py-1 text-xs font-semibold hover:bg-base disabled:opacity-50"
                           >
-                            Hapus akun
+                            Batalkan tolak
                           </button>
                         )}
                       </span>

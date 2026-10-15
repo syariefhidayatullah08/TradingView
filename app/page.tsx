@@ -18,7 +18,8 @@ export default async function Home() {
           {access.rejected ? (
             <p className="mt-2 text-sm text-muted">
               Permintaan akses untuk akun <span className="font-mono text-fg">{access.email || "Anda"}</span>{" "}
-              ditolak oleh pemilik aplikasi.
+              ditolak oleh pemilik aplikasi. Penolakan ini tidak permanen: hubungi pemilik aplikasi bila ingin
+              ditinjau ulang, lalu buka kembali halaman ini.
             </p>
           ) : (
             <p className="mt-2 text-sm text-muted">

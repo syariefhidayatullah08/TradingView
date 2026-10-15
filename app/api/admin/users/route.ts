@@ -56,18 +56,6 @@ export async function POST(request: Request) {
   return Response.json({ ok: true });
 }
 
-export async function DELETE(request: Request) {
-  const denied = await denyUnlessOwner();
-  if (denied) return denied;
-
-  const body = await request.json().catch(() => null);
-  const userId = await targetUser(body);
-  if (userId instanceof Response) return userId;
-  const client = await clerkClient();
-  await client.users.deleteUser(userId);
-  return Response.json({ ok: true });
-}
-
 export async function PUT(request: Request) {
   const denied = await denyUnlessOwner();
   if (denied) return denied;
