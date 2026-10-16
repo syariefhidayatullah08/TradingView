@@ -5,7 +5,9 @@ import {
   CandlestickSeries,
   createChart,
   createSeriesMarkers,
+  LineStyle,
   type IChartApi,
+  type IPriceLine,
   type ISeriesApi,
   type ISeriesMarkersPluginApi,
   type SeriesMarker,
@@ -16,6 +18,7 @@ import type { Candle, Signal } from "@/lib/indicators";
 import { useLiveCandles } from "@/lib/live-candles";
 import { outlook } from "@/lib/outlook";
 import type { BacktestResult } from "@/lib/backtest";
+import { zones } from "@/lib/structure";
 import { useStrategyTrades } from "@/lib/use-strategy-trades";
 import { COINS, formatPrice, pricePrecision, type Coin, type Timeframe } from "@/lib/symbols";
 
@@ -70,6 +73,7 @@ type ChartRefs = {
   chart: IChartApi;
   series: ISeriesApi<"Candlestick">;
   markers: ISeriesMarkersPluginApi<Time>;
+  lines: IPriceLine[];
   loaded: boolean;
 };
 
@@ -108,7 +112,7 @@ function MiniChart({
       wickDownColor: "#fb7185",
       borderVisible: false,
     });
-    refs.current = { chart, series, markers: createSeriesMarkers(series, []), loaded: false };
+    refs.current = { chart, series, markers: createSeriesMarkers(series, []), lines: [], loaded: false };
     return () => {
       chart.remove();
       refs.current = null;
@@ -135,6 +139,31 @@ function MiniChart({
     const r = refs.current;
     if (!r || !result || !candles?.length) return;
     r.markers.setMarkers(tradeMarkers(result, INTERVAL_MS[timeframe.binance], candles[0].time));
+    // Nearest support/resistance zones and the open position's entry, as horizontal lines.
+    r.lines.forEach((l) => r.series.removePriceLine(l));
+    r.lines = zones(candles.slice(-300), 0.006, 2).map((z) =>
+      r.series.createPriceLine({
+        price: z.price,
+        color: z.kind === "support" ? "rgba(52,211,153,0.7)" : "rgba(251,113,133,0.7)",
+        lineWidth: 1,
+        lineStyle: LineStyle.Dashed,
+        axisLabelVisible: true,
+        title: `${z.kind === "support" ? "S" : "R"} ${z.touches}×`,
+      }),
+    );
+    const open = result.trades.find((t) => t.reason === "open");
+    if (open) {
+      r.lines.push(
+        r.series.createPriceLine({
+          price: open.entryPrice,
+          color: "rgba(165,180,252,0.9)",
+          lineWidth: 1,
+          lineStyle: LineStyle.Solid,
+          axisLabelVisible: true,
+          title: "Beli",
+        }),
+      );
+    }
     // candles is read only for its first time, which does not change between recomputes.
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [result, timeframe.binance]);
@@ -224,7 +253,8 @@ export default function RealtimeCharts({
         <p className="text-xs text-muted">
           Candle {timeframe.label} · harga dan arah langsung dari Binance. ▲ BELI dan ▼ JUAL adalah transaksi strategi
           aplikasi (sama dengan Mulai Trading, dengan pengaturan Anda); label JUAL menunjukkan hasil bersih setelah
-          biaya, hijau untung dan merah rugi. Persentase harga = perubahan sepanjang {HISTORY} candle.
+          biaya, hijau untung dan merah rugi. Garis putus-putus: S = support, R = resistance (angka = berapa kali
+          harga memantul di sana). Persentase harga = perubahan sepanjang {HISTORY} candle.
         </p>
         <div className="flex items-center gap-1 text-xs">
           <span className="text-muted">Tampilkan</span>

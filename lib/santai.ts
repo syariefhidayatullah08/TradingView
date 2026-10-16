@@ -21,6 +21,9 @@ export type SantaiSettings = {
   trailing: boolean;
   // Only advise buying coins whose recent backtest on this timeframe was profitable.
   evidenceOnly: boolean;
+  // Price-structure reversal entries (lib/structure.ts). Backtested 2026-10: better in normal mode
+  // (1h +17.9% → +22.6%, 4h -15.6% → -9.1%) but worse in Mode Santai, so it never applies there.
+  structure: boolean;
   // Risk manager (see lib/risk.ts).
   riskPct: number;
   weeklyLossPct: number;
@@ -40,6 +43,7 @@ export const DEFAULT_SANTAI: SantaiSettings = {
   btcFilter: false,
   trailing: true,
   evidenceOnly: true,
+  structure: true,
   riskPct: 1.5,
   weeklyLossPct: 6,
   dcaEnabled: false,
@@ -68,6 +72,7 @@ export function sanitizeSantai(raw: unknown): SantaiSettings {
     btcFilter: r.btcFilter === true,
     trailing: r.trailing !== false,
     evidenceOnly: r.evidenceOnly !== false,
+    structure: r.structure !== false,
     riskPct: clamp(r.riskPct, 0.25, 5, DEFAULT_SANTAI.riskPct),
     weeklyLossPct: clamp(r.weeklyLossPct, 1, 30, DEFAULT_SANTAI.weeklyLossPct),
     dcaEnabled: r.dcaEnabled === true,

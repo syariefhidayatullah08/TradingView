@@ -163,7 +163,12 @@ export default function SantaiSettingsPanel() {
   );
 }
 
-const STRATEGY: { key: "trailing" | "evidenceOnly" | "sensitive" | "btcFilter"; label: string; hint: string }[] = [
+const STRATEGY: { key: "trailing" | "structure" | "evidenceOnly" | "sensitive" | "btcFilter"; label: string; hint: string }[] = [
+  {
+    key: "structure",
+    label: "Tangkap pembalikan (struktur harga)",
+    hint: "BELI lebih awal saat harga menembus puncak terakhir atau muncul divergensi RSI, di atas VWAP dan tidak menabrak resistance. Di uji 10 koin menaikkan hasil mode normal; tidak dipakai di Mode Santai.",
+  },
   {
     key: "evidenceOnly",
     label: "Hanya BELI di koin yang terbukti",

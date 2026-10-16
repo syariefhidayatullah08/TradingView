@@ -30,6 +30,7 @@ export function advise(
   const d = decide(candles, higher, higherLabel, {
     sensitive: settings.sensitive,
     market: settings.btcFilter ? marketOutlook(btcDaily) : null,
+    structure: settings.structure && !settings.enabled ? "reversal" : undefined,
   });
   return d && applyEvidence(applySantai(d, symbol, settings, open), evidence, settings.evidenceOnly);
 }

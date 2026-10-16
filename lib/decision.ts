@@ -1,7 +1,8 @@
-import { analyze, bollinger, rsi, type Candle, type Signal } from "./indicators";
+import { analyze, atr, bollinger, rsi, type Candle, type Signal } from "./indicators";
 import { outlook, type Outlook } from "./outlook";
 import { planLevels, type PlanLevels } from "./positions";
 import { detectSignals, volumeSplit } from "./signals";
+import { bullishBreak, bullishDivergence, vwap, zones } from "./structure";
 
 export type Action = "beli" | "tunggu" | "jangan";
 
@@ -36,6 +37,9 @@ export type DecideOptions = {
   sensitive?: boolean;
   // Daily outlook of BTC; altcoins rarely rise while it falls, so a falling BTC holds buys back.
   market?: Outlook | null;
+  // Price structure (break of structure, RSI divergence, VWAP, support/resistance):
+  // "votes" adds them to the score, "reversal" also lets a confirmed turn buy before the trend indicators agree.
+  structure?: "votes" | "reversal";
 };
 const OVERBOUGHT_RSI = 72;
 
@@ -102,6 +106,36 @@ export function decide(
     reasons.push({ text: `Tren besar (${higherLabel}) ${ho.direction.toLowerCase()}`, tone: ho.tone });
   }
 
+  let reversal = false;
+  if (opts.structure) {
+    const bos = bullishBreak(candles);
+    const div = bullishDivergence(candles);
+    const vw = vwap(candles);
+    const range = atr(candles);
+    const near = zones(candles);
+    const support = near.find((z) => z.kind === "support" && range !== null && price - z.price <= range);
+    const resistance = near.find((z) => z.kind === "resistance" && range !== null && z.price - price <= range * 0.5);
+    if (bos) {
+      points += 1;
+      reasons.push({ text: "Struktur pasar berbalik: harga menembus puncak terakhir setelah titik terendah baru", tone: 1 });
+    }
+    if (div) {
+      points += 1;
+      reasons.push({ text: "Divergensi RSI: harga membuat titik rendah baru tetapi RSI tidak, tekanan jual melemah", tone: 1 });
+    }
+    if (vw !== null) {
+      const above = price >= vw;
+      points += above ? 0.5 : -0.5;
+      reasons.push({ text: `Harga ${above ? "di atas" : "di bawah"} VWAP ${fmt(vw)}`, tone: above ? 1 : -1 });
+    }
+    if (support) reasons.push({ text: `Dekat support kuat ${fmt(support.price)} (${support.touches}× disentuh)`, tone: 1 });
+    if (resistance) {
+      points -= 0.5;
+      reasons.push({ text: `Tepat di bawah resistance ${fmt(resistance.price)}, ruang naik sempit`, tone: -1 });
+    }
+    reversal = opts.structure === "reversal" && (bos || div) && vw !== null && price >= vw && !resistance;
+  }
+
   const m = opts.market;
   if (m) {
     reasons.push({ text: `Pasar BTC harian ${m.direction.toLowerCase()} (kekuatan ${m.strength}%)`, tone: m.tone });
@@ -121,7 +155,10 @@ export function decide(
 
   let action: Action;
   let headline: string;
-  if (points <= AVOID_POINTS) {
+  if (reversal && !stretched && !(m && m.tone === -1)) {
+    action = "beli";
+    headline = "BELI (pembalikan): struktur harga berbalik naik lebih awal dari indikator tren";
+  } else if (points <= AVOID_POINTS) {
     action = "jangan";
     headline = "Jangan beli dulu: mayoritas indikator menunjukkan tekanan jual";
   } else if (points < (opts.sensitive ? SENSITIVE_BUY_POINTS : BUY_POINTS)) {

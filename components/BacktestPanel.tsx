@@ -58,12 +58,26 @@ function variants(s: SantaiSettings): Variant[] {
   return [
     {
       name: "Pengaturan Anda",
-      note: [s.trailing && "trailing", s.sensitive && "sensitif", s.btcFilter && "filter BTC"].filter(Boolean).join(", ") || "dasar",
-      opts: { ...base, sensitive: s.sensitive, btcFilter: s.btcFilter, trailing: s.trailing },
+      note:
+        [s.trailing && "trailing", s.structure && !s.enabled && "pembalikan", s.sensitive && "sensitif", s.btcFilter && "filter BTC"]
+          .filter(Boolean)
+          .join(", ") || "dasar",
+      opts: {
+        ...base,
+        sensitive: s.sensitive,
+        btcFilter: s.btcFilter,
+        trailing: s.trailing,
+        ...(s.structure && !s.enabled ? { structure: "reversal" as const } : {}),
+      },
       mine: true,
     },
     { name: "Dasar", note: "tanpa tambahan", opts: base },
     { name: "Trailing stop", note: "jual saat turun dari puncak", opts: { ...base, trailing: true } },
+    {
+      name: "Pembalikan + trailing",
+      note: "struktur harga, divergensi RSI, VWAP",
+      opts: { ...base, trailing: true, structure: "reversal" },
+    },
     { name: "Sensitif + trailing", note: "beli lebih cepat", opts: { ...base, sensitive: true, trailing: true } },
     { name: "Filter BTC + trailing", note: "tahan saat BTC turun", opts: { ...base, btcFilter: true, trailing: true } },
   ];

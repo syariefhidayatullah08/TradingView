@@ -21,6 +21,7 @@ export type BacktestOptions = {
   // After the target is reached, keep riding while price climbs; sell when it falls one ATR from the peak.
   trailing: boolean;
   minConfidence: number;
+  structure?: "votes" | "reversal";
 };
 
 export type BacktestInput = {
@@ -144,7 +145,7 @@ export async function runBacktest(
         candles.slice(i - BACKTEST_WINDOW + 1, i + 1),
         higher,
         input.higherLabel,
-        { sensitive: opts.sensitive, market },
+        { sensitive: opts.sensitive, market, structure: opts.structure },
       );
       if (d && d.action === "beli" && d.confidence >= opts.minConfidence && d.plan) {
         pos = {

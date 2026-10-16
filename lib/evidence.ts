@@ -39,6 +39,7 @@ export function backtestOptions(s: SantaiSettings): BacktestOptions {
     exit: s.enabled ? "santai" : "normal",
     targetPct: s.targetPct,
     minConfidence: s.enabled ? SANTAI_MIN_CONFIDENCE : 0,
+    ...(s.structure && !s.enabled ? { structure: "reversal" as const } : {}),
   };
 }
 
