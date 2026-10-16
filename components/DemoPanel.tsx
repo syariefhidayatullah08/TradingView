@@ -32,13 +32,30 @@ function useLivePrices(symbols: string[]): Record<string, number> {
   useEffect(() => {
     const list = key ? key.split(",") : [];
     const unsubscribe = list.map((s) => subscribeLive(s, PRICE_INTERVAL, () => {}));
+    // Fallback REST prices for coins whose live stream has not delivered yet.
+    let rest: Record<string, number> = {};
+    let fetching = false;
+    const fill = async (missing: string[]) => {
+      if (fetching || missing.length === 0) return;
+      fetching = true;
+      try {
+        const res = await fetch(`${BINANCE_API}/ticker/price?symbols=${encodeURIComponent(JSON.stringify(missing))}`);
+        if (res.ok) {
+          const list: { symbol: string; price: string }[] = await res.json();
+          rest = { ...rest, ...Object.fromEntries(list.map((t) => [t.symbol, Number(t.price)])) };
+        }
+      } catch {}
+      fetching = false;
+    };
     const update = () => {
       const next: Record<string, number> = {};
       for (const s of list) {
         const c = getLive(s, PRICE_INTERVAL).candles;
         if (c?.length) next[s] = c[c.length - 1].close;
+        else if (rest[s]) next[s] = rest[s];
       }
       setPrices(next);
+      fill(list.filter((s) => !getLive(s, PRICE_INTERVAL).candles?.length));
     };
     const first = setTimeout(update, 0);
     const timer = setInterval(update, PRICE_REFRESH_MS);
@@ -302,7 +319,13 @@ export default function DemoPanel({ coin, onSelect }: { coin: Coin; onSelect: (c
     );
   }
 
-  const coinsValue = account.holdings.reduce((sum, h) => sum + h.qty * (prices[h.symbol] ?? h.cost / h.qty), 0);
+  // Coins valued after the sell fee, like the holdings table; a coin without a price yet is not
+  // silently counted at cost, the totals say they are still being calculated instead.
+  const pending = account.holdings.filter((h) => !prices[h.symbol]).length;
+  const coinsValue = account.holdings.reduce(
+    (sum, h) => sum + h.qty * (prices[h.symbol] ?? h.cost / h.qty) * (prices[h.symbol] ? 1 - DEMO_FEE_PCT / 100 : 1),
+    0,
+  );
   const equity = account.cash + coinsValue;
   const total = equity - DEMO_START_USDT;
 
@@ -326,16 +349,22 @@ export default function DemoPanel({ coin, onSelect }: { coin: Coin; onSelect: (c
         <div className="grid grid-cols-2 gap-2 md:grid-cols-4">
           <div className="rounded bg-base p-3">
             <div className="text-[11px] text-muted">Total aset</div>
-            <div className="font-mono text-lg font-semibold">{usd(equity)}</div>
+            <div className="font-mono text-lg font-semibold">{pending ? "menghitung…" : usd(equity)}</div>
           </div>
           <div className="rounded bg-base p-3">
             <div className="text-[11px] text-muted">Untung / rugi total</div>
-            <div className={`font-mono text-lg font-semibold ${total >= 0 ? "text-up" : "text-down"}`}>
-              {signedUsd(total)}
-            </div>
-            <div className={`text-[11px] ${total >= 0 ? "text-up" : "text-down"}`}>
-              {((total / DEMO_START_USDT) * 100).toFixed(2)}%
-            </div>
+            {pending ? (
+              <div className="font-mono text-lg font-semibold text-muted">menghitung…</div>
+            ) : (
+              <>
+                <div className={`font-mono text-lg font-semibold ${total >= 0 ? "text-up" : "text-down"}`}>
+                  {signedUsd(total)}
+                </div>
+                <div className={`text-[11px] ${total >= 0 ? "text-up" : "text-down"}`}>
+                  {((total / DEMO_START_USDT) * 100).toFixed(2)}% · belum terjual {signedUsd(total - account.realized)}
+                </div>
+              </>
+            )}
           </div>
           <div className="rounded bg-base p-3">
             <div className="text-[11px] text-muted">Saldo USDT</div>
