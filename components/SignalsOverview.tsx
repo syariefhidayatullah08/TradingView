@@ -1,53 +1,59 @@
 "use client";
 
+import { BACKTEST_WINDOW } from "@/lib/backtest";
 import { useLiveCandles } from "@/lib/live-candles";
-import { detectSignals, signalStats } from "@/lib/signals";
+import { lastSignal } from "@/lib/strategy-signals";
 import { COINS, formatPrice, type Coin, type Timeframe } from "@/lib/symbols";
+import { useStrategyTrades } from "@/lib/use-strategy-trades";
+import SignalBadge from "./SignalBadge";
 
 const HISTORY = 500;
 
 function ago(time: number): string {
-  const minutes = Math.round((Date.now() - time) / 60_000);
+  const minutes = Math.max(0, Math.round((Date.now() - time) / 60_000));
   if (minutes < 60) return `${minutes} mnt lalu`;
   const hours = Math.round(minutes / 60);
   if (hours < 48) return `${hours} jam lalu`;
   return `${Math.round(hours / 24)} hari lalu`;
 }
 
+function pct(n: number): string {
+  return `${n >= 0 ? "+" : ""}${n.toFixed(2)}%`;
+}
+
 function SignalRow({
   coin,
-  interval,
+  timeframe,
   active,
   onSelect,
 }: {
   coin: Coin;
-  interval: string;
+  timeframe: Timeframe;
   active: boolean;
   onSelect: (coin: Coin) => void;
 }) {
-  const live = useLiveCandles(coin.symbol, interval);
-  const cls = `cursor-pointer border-t border-line hover:bg-base ${active ? "bg-base" : ""}`;
+  const live = useLiveCandles(coin.symbol, timeframe.binance);
   const candles = live.candles;
+  const result = useStrategyTrades(coin.symbol, timeframe, candles);
+  const cls = `cursor-pointer border-t border-line hover:bg-base ${active ? "bg-base" : ""}`;
 
-  if (!candles) {
+  if (!candles || !result) {
     return (
       <tr className={cls} onClick={() => onSelect(coin)}>
         <td className="px-3 py-1.5 font-semibold">{coin.base}</td>
-        <td colSpan={6} className={`px-2 py-1.5 ${live.error ? "text-down" : "text-muted"}`}>
-          {live.error ? "Data gagal dimuat, mencoba lagi…" : "Memuat…"}
+        <td colSpan={7} className={`px-2 py-1.5 ${live.error ? "text-down" : "text-muted"}`}>
+          {live.error ? "Data gagal dimuat, mencoba lagi…" : "Menghitung…"}
         </td>
       </tr>
     );
   }
 
-  const stats = signalStats(detectSignals(candles), candles);
   const price = candles[candles.length - 1].close;
-  const last = stats.last;
-  const closed = stats.wins + stats.losses;
-  const sinceGood =
-    last && stats.sinceLastPct !== null
-      ? (last.type === "beli" ? stats.sinceLastPct : -stats.sinceLastPct) >= 0
-      : true;
+  const last = lastSignal(result);
+  const since = last ? ((price - last.price) / last.price) * 100 : null;
+  // Green when price moved the way the last signal hoped: up after a buy, down after a sell.
+  const sinceGood = last && since !== null ? (last.type === "beli" ? since : -since) >= 0 : true;
+  const closed = result.wins + result.losses;
 
   return (
     <tr className={cls} onClick={() => onSelect(coin)}>
@@ -59,10 +65,19 @@ function SignalRow({
         </span>
       </td>
       <td className="px-2 py-1.5 text-right font-mono">${formatPrice(price)}</td>
+      <td className="px-2 py-1.5 text-right">
+        <SignalBadge symbol={coin.symbol} timeframe={timeframe} />
+      </td>
       <td className="px-2 py-1.5">
         {last ? (
           <span className={`font-bold ${last.type === "beli" ? "text-up" : "text-down"}`} title={last.reason}>
             {last.type === "beli" ? "▲ BELI" : "▼ JUAL"}
+            {last.netPct === null && <span className="ml-1 font-normal text-muted">dipegang</span>}
+            {last.netPct !== null && (
+              <span className={`ml-1 font-mono font-normal ${last.netPct >= 0 ? "text-up" : "text-down"}`}>
+                {pct(last.netPct)}
+              </span>
+            )}
           </span>
         ) : (
           <span className="text-muted">—</span>
@@ -71,12 +86,11 @@ function SignalRow({
       <td className="px-2 py-1.5 text-muted">{last ? ago(last.time) : "—"}</td>
       <td className="px-2 py-1.5 text-right font-mono">{last ? `$${formatPrice(last.price)}` : "—"}</td>
       <td className={`px-2 py-1.5 text-right font-mono ${sinceGood ? "text-up" : "text-down"}`}>
-        {stats.sinceLastPct === null
-          ? "—"
-          : `${stats.sinceLastPct >= 0 ? "+" : ""}${stats.sinceLastPct.toFixed(2)}%`}
+        {since === null ? "—" : pct(since)}
       </td>
       <td className="px-3 py-1.5 text-right font-mono">
-        {closed ? `${stats.wins}/${closed} (${Math.round((stats.wins / closed) * 100)}%)` : "—"}
+        {closed ? `${result.wins}/${closed}` : "—"}
+        <span className={`ml-1 ${result.totalPct >= 0 ? "text-up" : "text-down"}`}>{pct(result.totalPct)}</span>
       </td>
     </tr>
   );
@@ -95,7 +109,7 @@ export default function SignalsOverview({
     <section className="panel">
       <header className="panel-header">
         <h2>Sinyal Beli/Jual Semua Koin</h2>
-        <span className="text-xs text-muted">Candle {timeframe.label} · real-time · klik koin untuk detail</span>
+        <span className="text-xs text-muted">Candle {timeframe.label} · strategi aplikasi · klik koin untuk detail</span>
       </header>
       <div className="overflow-x-auto">
         <table className="w-full text-xs">
@@ -103,11 +117,12 @@ export default function SignalsOverview({
             <tr className="text-[11px] uppercase tracking-wide text-muted">
               <th className="px-3 py-2 text-left font-medium">Koin</th>
               <th className="px-2 py-2 text-right font-medium">Harga</th>
+              <th className="px-2 py-2 text-right font-medium">Saran sekarang</th>
               <th className="px-2 py-2 text-left font-medium">Sinyal terakhir</th>
               <th className="px-2 py-2 text-left font-medium">Kapan</th>
               <th className="px-2 py-2 text-right font-medium">Harga sinyal</th>
               <th className="px-2 py-2 text-right font-medium">Sejak sinyal</th>
-              <th className="px-3 py-2 text-right font-medium">Beli untung</th>
+              <th className="px-3 py-2 text-right font-medium">Menang · hasil</th>
             </tr>
           </thead>
           <tbody>
@@ -115,7 +130,7 @@ export default function SignalsOverview({
               <SignalRow
                 key={coin.symbol}
                 coin={coin}
-                interval={timeframe.binance}
+                timeframe={timeframe}
                 active={coin.symbol === selected}
                 onSelect={onSelect}
               />
@@ -124,8 +139,10 @@ export default function SignalsOverview({
         </table>
       </div>
       <p className="px-4 py-2 text-[11px] text-muted">
-        &ldquo;Sejak sinyal&rdquo; hijau berarti harga bergerak searah sinyal terakhir. &ldquo;Beli untung&rdquo; =
-        pasangan beli→jual yang berakhir untung dari {HISTORY} candle terakhir, tanpa biaya transaksi.
+        Sinyal dari strategi yang sama dengan &ldquo;Mulai Trading&rdquo; dan pengaturan Anda. &ldquo;Saran
+        sekarang&rdquo; = keputusan saat ini. &ldquo;Sinyal terakhir&rdquo; = beli yang masih dipegang (strategi menunggu target
+        atau stop, walau saran sekarang bukan BELI lagi), atau jual terakhir beserta hasil bersihnya. &ldquo;Menang · hasil&rdquo; = transaksi untung dari yang selesai, dan
+        hasil bersih total selama {HISTORY - BACKTEST_WINDOW} candle terakhir, biaya sudah dihitung.
       </p>
     </section>
   );

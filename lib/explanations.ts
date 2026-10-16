@@ -88,8 +88,8 @@ export const SENTIMENT_PARTS: Record<string, string> = {
 };
 
 export const SIGNALS: Explanation = {
-  apa: "Sinyal BELI muncul saat garis MACD memotong ke atas garis sinyalnya ketika harga di atas EMA 50 (mengikuti tren), atau saat RSI naik keluar dari zona oversold (di bawah 30). Sinyal JUAL adalah kebalikannya: MACD memotong ke bawah saat harga di bawah EMA 50, atau RSI turun keluar dari zona overbought (di atas 70). Sinyal selalu bergantian beli lalu jual.",
-  cara: "Rekam jejak menghitung setiap pasangan beli→jual di candle yang tampil: berapa persen yang berakhir untung dan rata-rata hasilnya. Volume beli vs jual membandingkan volume yang dieksekusi pembeli pasar (market buy) dengan penjual pasar di Binance.",
+  apa: "Sinyal di sini berasal dari strategi yang sama dengan “Mulai Trading”, pemindai, dan notifikasi Telegram, memakai pengaturan Anda. BELI muncul saat strategi memutuskan membeli. JUAL muncul saat strategi menjual: di target, oleh trailing stop (harga turun dari puncak), atau kena stop loss (ditandai STOP).",
+  cara: "Strategi diputar ulang candle demi candle hanya dengan data yang sudah ada saat itu, satu posisi sekaligus, biaya beli dan jual 0,1% sudah dihitung. Rekam jejak menghitung transaksi yang selesai: berapa persen untung dan hasil bersih totalnya, dibandingkan dengan beli lalu tahan. Volume beli vs jual membandingkan volume pembeli pasar (market buy) dengan penjual pasar di Binance.",
   keandalan:
-    "Ini aturan klasik yang banyak dipakai, dan rekam jejaknya dihitung dari data sungguhan koin ini, tetapi tanpa biaya transaksi dan hanya untuk candle yang tampil. Hasil masa lalu tidak menjamin hasil berikutnya; pakai sinyal sebagai saat untuk memeriksa, bukan perintah otomatis.",
+    "Rekam jejaknya dari data sungguhan koin ini, tetapi hanya untuk candle yang tampil, jadi jumlah transaksinya sedikit. Untuk pengujian lebih panjang pakai tab Uji Strategi. Hasil masa lalu tidak menjamin hasil berikutnya.",
 };

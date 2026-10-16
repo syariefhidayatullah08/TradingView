@@ -9,18 +9,19 @@ import {
   type IChartApi,
   type ISeriesApi,
   type ISeriesMarkersPluginApi,
-  type SeriesMarker,
   type Time,
   type UTCTimestamp,
 } from "lightweight-charts";
 import { SIGNALS } from "@/lib/explanations";
 import type { Candle } from "@/lib/indicators";
 import { useLiveCandles } from "@/lib/live-candles";
-import { detectSignals, signalStats, volumeSplit, type SignalStats, type VolumeSplit } from "@/lib/signals";
+import { BACKTEST_WINDOW, type BacktestResult } from "@/lib/backtest";
+import { volumeSplit, type VolumeSplit } from "@/lib/signals";
+import { INTERVAL_MS, lastSignal, tradeMarkers } from "@/lib/strategy-signals";
 import { formatCompact, formatPrice, pricePrecision, type Coin, type Timeframe } from "@/lib/symbols";
+import { useStrategyTrades } from "@/lib/use-strategy-trades";
 import Explain from "./Explain";
 
-const HISTORY = 500;
 const VOLUME_LOOKBACK = 24;
 
 function when(time: number): string {
@@ -37,7 +38,6 @@ type ChartRefs = {
   buyVolume: ISeriesApi<"Histogram">;
   sellVolume: ISeriesApi<"Histogram">;
   markers: ISeriesMarkersPluginApi<Time>;
-  lastSignalTime: number;
   loaded: boolean;
 };
 
@@ -45,7 +45,17 @@ const offset = new Date().getTimezoneOffset() * 60;
 const toTime = (c: Candle) => (c.time / 1000 - offset) as UTCTimestamp;
 const toBar = (c: Candle) => ({ time: toTime(c), open: c.open, high: c.high, low: c.low, close: c.close });
 
-function SignalChart({ candles, chartKey }: { candles: Candle[]; chartKey: string }) {
+function SignalChart({
+  candles,
+  chartKey,
+  result,
+  intervalMs,
+}: {
+  candles: Candle[];
+  chartKey: string;
+  result: BacktestResult;
+  intervalMs: number;
+}) {
   const ref = useRef<HTMLDivElement>(null);
   const refs = useRef<ChartRefs | null>(null);
 
@@ -77,7 +87,6 @@ function SignalChart({ candles, chartKey }: { candles: Candle[]; chartKey: strin
       buyVolume,
       sellVolume,
       markers: createSeriesMarkers(price, []),
-      lastSignalTime: -1,
       loaded: false,
     };
     return () => {
@@ -103,36 +112,36 @@ function SignalChart({ candles, chartKey }: { candles: Candle[]; chartKey: strin
       r.sellVolume.update({ time: toTime(last), value: last.volume });
       r.buyVolume.update({ time: toTime(last), value: last.takerBuyVolume ?? 0 });
     }
-    const signals = detectSignals(candles);
-    const newest = signals[signals.length - 1]?.time ?? 0;
-    if (newest !== r.lastSignalTime) {
-      r.lastSignalTime = newest;
-      const markers: SeriesMarker<Time>[] = signals.map((sg) => ({
-        time: toTime(candles[sg.index]),
-        position: sg.type === "beli" ? "belowBar" : "aboveBar",
-        shape: sg.type === "beli" ? "arrowUp" : "arrowDown",
-        color: sg.type === "beli" ? "#34d399" : "#fb7185",
-        text: sg.type === "beli" ? "BELI" : "JUAL",
-      }));
-      r.markers.setMarkers(markers);
-    }
   }, [candles]);
+
+  // Arrows from the real strategy, redrawn when its trades are recomputed (once per closed candle).
+  useEffect(() => {
+    const r = refs.current;
+    if (!r || candles.length === 0) return;
+    r.markers.setMarkers(tradeMarkers(result, intervalMs, candles[0].time));
+    // candles is read only for its first time, which does not change between recomputes.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [result, intervalMs]);
 
   return <div ref={ref} className="h-[360px] w-full" />;
 }
+
+
+const reasonText = { target: "target", stop: "stop loss", trail: "trailing", open: "masih dipegang" } as const;
 
 export default function BuySellPanel({ coin, timeframe }: { coin: Coin; timeframe: Timeframe }) {
   const key = `${coin.symbol}:${timeframe.binance}`;
   const live = useLiveCandles(coin.symbol, timeframe.binance);
   const candles = live.candles;
+  const result = useStrategyTrades(coin.symbol, timeframe, candles);
 
-  let stats: SignalStats | null = null;
   let volume: VolumeSplit | null = null;
-  if (candles && candles.length > 60) {
-    stats = signalStats(detectSignals(candles), candles);
-    volume = volumeSplit(candles, VOLUME_LOOKBACK);
-  }
-  const closedTrades = stats ? stats.wins + stats.losses : 0;
+  if (candles && candles.length > 60) volume = volumeSplit(candles, VOLUME_LOOKBACK);
+  const price = candles ? candles[candles.length - 1].close : 0;
+  const last = result ? lastSignal(result) : null;
+  const since = last ? ((price - last.price) / last.price) * 100 : null;
+  const closedTrades = result ? result.wins + result.losses : 0;
+  const testedCandles = candles ? Math.max(0, candles.length - BACKTEST_WINDOW) : 0;
 
   return (
     <section className="panel">
@@ -146,60 +155,60 @@ export default function BuySellPanel({ coin, timeframe }: { coin: Coin; timefram
 
       {!candles && !live.error && <p className="p-4 text-sm text-muted">Memuat sinyal…</p>}
       {live.error && <p className="p-4 text-sm text-down">Data sinyal gagal dimuat, mencoba lagi…</p>}
+      {candles && !result && !live.error && <p className="p-4 text-sm text-muted">Menghitung sinyal strategi…</p>}
 
-      {candles && stats && (
+      {candles && result && (
         <div className="flex flex-col gap-4 p-4">
           <div className="grid gap-3 md:grid-cols-3">
             <div className="rounded bg-base p-3">
               <div className="text-[11px] uppercase tracking-wide text-muted">Sinyal terakhir</div>
-              {stats.last ? (
+              {last ? (
                 <>
-                  <div className={`text-xl font-bold ${stats.last.type === "beli" ? "text-up" : "text-down"}`}>
-                    {stats.last.type === "beli" ? "▲ BELI" : "▼ JUAL"}
+                  <div className={`text-xl font-bold ${last.type === "beli" ? "text-up" : "text-down"}`}>
+                    {last.type === "beli" ? "▲ BELI" : "▼ JUAL"}
+                    {last.netPct !== null && (
+                      <span className={`ml-2 text-sm ${last.netPct >= 0 ? "text-up" : "text-down"}`}>
+                        {pct(last.netPct)} bersih
+                      </span>
+                    )}
                   </div>
                   <div className="text-xs">
-                    {when(stats.last.time)} di ${formatPrice(stats.last.price)}
+                    {when(last.time)} di ${formatPrice(last.price)}
                   </div>
-                  <div className="text-[11px] text-muted">{stats.last.reason}</div>
-                  {stats.sinceLastPct !== null && (
+                  <div className="text-[11px] text-muted">{last.reason}</div>
+                  {since !== null && (
                     <div
-                      className={`mt-1 text-xs ${
-                        (stats.last.type === "beli" ? stats.sinceLastPct : -stats.sinceLastPct) >= 0
-                          ? "text-up"
-                          : "text-down"
-                      }`}
+                      className={`mt-1 text-xs ${(last.type === "beli" ? since : -since) >= 0 ? "text-up" : "text-down"}`}
                     >
-                      Harga sejak sinyal: {pct(stats.sinceLastPct)}
+                      Harga sejak sinyal: {pct(since)}
                     </div>
                   )}
                 </>
               ) : (
-                <div className="text-sm text-muted">Belum ada sinyal</div>
+                <div className="text-sm text-muted">Belum ada sinyal di {testedCandles} candle terakhir</div>
               )}
             </div>
 
             <div className="rounded bg-base p-3">
-              <div className="text-[11px] uppercase tracking-wide text-muted">
-                Rekam jejak ({HISTORY} candle)
-              </div>
-              <div className="mt-1 text-xs">
-                <span className="text-up">{stats.buys} sinyal beli</span> ·{" "}
-                <span className="text-down">{stats.sells} sinyal jual</span>
-              </div>
+              <div className="text-[11px] uppercase tracking-wide text-muted">Rekam jejak ({testedCandles} candle)</div>
               {closedTrades > 0 ? (
                 <>
                   <div className="mt-1 text-xl font-bold">
-                    {Math.round((stats.wins / closedTrades) * 100)}%{" "}
-                    <span className="text-xs font-normal text-muted">beli yang berakhir untung</span>
+                    {Math.round((result.wins / closedTrades) * 100)}%{" "}
+                    <span className="text-xs font-normal text-muted">transaksi berakhir untung</span>
                   </div>
                   <div className="text-[11px] text-muted">
-                    {stats.wins} untung, {stats.losses} rugi · rata-rata {pct(stats.avgReturnPct ?? 0)} per
-                    transaksi beli→jual
+                    {result.wins} untung, {result.losses} rugi · hasil bersih total{" "}
+                    <span className={result.totalPct >= 0 ? "text-up" : "text-down"}>{pct(result.totalPct)}</span>
                   </div>
                 </>
               ) : (
-                <div className="mt-1 text-sm text-muted">Belum ada pasangan beli→jual</div>
+                <div className="mt-1 text-sm text-muted">Belum ada transaksi yang selesai</div>
               )}
+              <div className="mt-1 text-[11px] text-muted">
+                Pembanding beli lalu tahan:{" "}
+                <span className={result.buyHoldPct >= 0 ? "text-up" : "text-down"}>{pct(result.buyHoldPct)}</span>
+              </div>
             </div>
 
             <div className="rounded bg-base p-3">
@@ -234,38 +243,38 @@ export default function BuySellPanel({ coin, timeframe }: { coin: Coin; timefram
             </div>
           </div>
 
-          <SignalChart candles={candles} chartKey={key} />
+          <SignalChart candles={candles} chartKey={key} result={result} intervalMs={INTERVAL_MS[timeframe.binance]} />
           <p className="-mt-2 text-[11px] text-muted">
-            ▲ hijau = sinyal beli, ▼ merah = sinyal jual. Batang di bawah: hijau = volume beli, merah = volume
-            jual per candle. Geser chart untuk melihat sinyal lebih lama.
+            ▲ BELI = strategi membeli. ▼ JUAL/STOP = strategi menjual, dengan hasil bersih setelah biaya (hijau untung,
+            merah rugi). Batang di bawah: hijau = volume beli, merah = volume jual per candle.
           </p>
 
-          {stats.trades.length > 0 && (
+          {result.trades.length > 0 && (
             <div>
-              <div className="mb-1.5 text-[11px] uppercase tracking-wide text-muted">Transaksi beli→jual terakhir</div>
+              <div className="mb-1.5 text-[11px] uppercase tracking-wide text-muted">Transaksi strategi terakhir</div>
               <table className="w-full text-xs">
                 <thead>
                   <tr className="text-[11px] text-muted">
                     <th className="py-1 text-left font-medium">Beli</th>
                     <th className="py-1 text-left font-medium">Jual</th>
-                    <th className="py-1 text-right font-medium">Hasil</th>
+                    <th className="py-1 text-left font-medium">Sebab</th>
+                    <th className="py-1 text-right font-medium">Hasil bersih</th>
                   </tr>
                 </thead>
                 <tbody>
-                  {stats.trades
+                  {result.trades
                     .slice(-6)
                     .reverse()
-                    .map((tr) => (
-                      <tr key={tr.buy.time} className="border-t border-line font-mono">
+                    .map((t) => (
+                      <tr key={t.entryTime} className="border-t border-line font-mono">
                         <td className="py-1">
-                          {when(tr.buy.time)} · ${formatPrice(tr.buy.price)}
+                          {when(t.entryTime)} · ${formatPrice(t.entryPrice)}
                         </td>
                         <td className="py-1">
-                          {tr.sell ? `${when(tr.sell.time)} · $${formatPrice(tr.sell.price)}` : "masih terbuka"}
+                          {t.reason === "open" ? "sekarang" : when(t.exitTime)} · ${formatPrice(t.exitPrice)}
                         </td>
-                        <td className={`py-1 text-right ${tr.returnPct >= 0 ? "text-up" : "text-down"}`}>
-                          {pct(tr.returnPct)}
-                        </td>
+                        <td className="py-1 font-sans text-muted">{reasonText[t.reason]}</td>
+                        <td className={`py-1 text-right ${t.netPct >= 0 ? "text-up" : "text-down"}`}>{pct(t.netPct)}</td>
                       </tr>
                     ))}
                 </tbody>

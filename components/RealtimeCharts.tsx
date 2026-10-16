@@ -10,15 +10,14 @@ import {
   type IPriceLine,
   type ISeriesApi,
   type ISeriesMarkersPluginApi,
-  type SeriesMarker,
   type Time,
   type UTCTimestamp,
 } from "lightweight-charts";
 import type { Candle, Signal } from "@/lib/indicators";
 import { useLiveCandles } from "@/lib/live-candles";
 import { outlook } from "@/lib/outlook";
-import type { BacktestResult } from "@/lib/backtest";
 import { zones } from "@/lib/structure";
+import { INTERVAL_MS, tradeMarkers } from "@/lib/strategy-signals";
 import { useStrategyTrades } from "@/lib/use-strategy-trades";
 import { COINS, formatPrice, pricePrecision, type Coin, type Timeframe } from "@/lib/symbols";
 
@@ -41,28 +40,6 @@ const toBar = (c: Candle) => ({ time: toTime(c), open: c.open, high: c.high, low
 function pct(n: number): string {
   return `${n >= 0 ? "+" : ""}${n.toFixed(1)}%`;
 }
-
-// One marker where the strategy bought and one where it sold, labelled with the net result.
-function tradeMarkers(result: BacktestResult, intervalMs: number, first: number): SeriesMarker<Time>[] {
-  const at = (closeTime: number) => ((closeTime - intervalMs) / 1000 - offset) as UTCTimestamp;
-  const out: SeriesMarker<Time>[] = [];
-  for (const t of result.trades) {
-    if (t.entryTime - intervalMs < first) continue;
-    const win = t.netPct >= 0;
-    out.push({ time: at(t.entryTime), position: "belowBar", shape: "arrowUp", color: "#34d399", text: "BELI" });
-    if (t.reason === "open") continue;
-    out.push({
-      time: at(t.exitTime),
-      position: "aboveBar",
-      shape: "arrowDown",
-      color: win ? "#34d399" : "#fb7185",
-      text: `${t.reason === "stop" ? "STOP" : "JUAL"} ${pct(t.netPct)}`,
-    });
-  }
-  return out.sort((a, b) => (a.time as number) - (b.time as number));
-}
-
-const INTERVAL_MS: Record<string, number> = { "15m": 900_000, "1h": 3_600_000, "4h": 14_400_000, "1d": 86_400_000, "1w": 604_800_000 };
 
 function directionOf(candles: Candle[]): Direction | null {
   const o = outlook(candles, 1);
