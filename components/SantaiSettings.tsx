@@ -191,10 +191,32 @@ const STRATEGY: { key: "trailing" | "structure" | "evidenceOnly" | "sensitive" |
   },
 ];
 
+const STYLES = [
+  {
+    swing: false,
+    label: "Harian (candle 1j)",
+    hint: "Transaksi beberapa jam sampai beberapa hari. Lebih sering ada sinyal; perlu dicek beberapa kali sehari.",
+  },
+  {
+    swing: true,
+    label: "Mingguan (candle 1H)",
+    hint: "Transaksi rata-rata sekitar 9 hari; cukup dicek sekali sehari. Stop loss lebih jauh, jadi jumlah beli yang disarankan Mulai Trading otomatis lebih kecil.",
+  },
+];
+
 // On/off switches for the strategy, saved immediately to the account.
 export function StrategySettings() {
   const { settings, loaded } = useSantai();
   const [error, setError] = useState(false);
+
+  async function setStyle(swing: boolean) {
+    setError(false);
+    try {
+      await saveSantai({ ...settings, swing });
+    } catch {
+      setError(true);
+    }
+  }
 
   async function toggle(key: (typeof STRATEGY)[number]["key"]) {
     setError(false);
@@ -212,6 +234,33 @@ export function StrategySettings() {
         <span className="text-xs text-muted">Berlaku di Mulai Trading, Pemindai, notifikasi, dan Uji Strategi</span>
       </header>
       <div className="flex flex-col gap-3 p-4">
+        <div>
+          <div className="text-sm font-medium">Gaya trading</div>
+          <div className="mt-1.5 grid gap-2 sm:grid-cols-2">
+            {STYLES.map((st) => {
+              const active = settings.swing === st.swing;
+              return (
+                <button
+                  key={st.label}
+                  onClick={() => !active && setStyle(st.swing)}
+                  disabled={!loaded || settings.enabled}
+                  className={`rounded border p-2.5 text-left disabled:opacity-60 ${active ? "border-accent bg-base" : "border-line hover:bg-base"}`}
+                >
+                  <span className="text-sm font-semibold">
+                    {active ? "● " : "○ "}
+                    {st.label}
+                  </span>
+                  <span className="block text-[11px] text-muted">{st.hint}</span>
+                </button>
+              );
+            })}
+          </div>
+          <p className="mt-1 text-[11px] text-muted">
+            {settings.enabled
+              ? "Mode Santai sedang aktif dan selalu memakai candle 4j; gaya ini berlaku saat Mode Santai mati."
+              : "Mengatur candle untuk Mulai Trading, Pemindai, dan notifikasi Telegram. Candle di atas chart tetap bisa diganti untuk melihat-lihat."}
+          </p>
+        </div>
         {STRATEGY.map((s) => (
           <label key={s.key} className="flex cursor-pointer items-start gap-3">
             <input

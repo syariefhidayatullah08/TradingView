@@ -27,7 +27,7 @@ import ThemeSwitcher from "./ThemeSwitcher";
 import TVWidget from "./TVWidget";
 import { useEvidence } from "@/lib/evidence";
 import { useAlertsEnabled } from "@/lib/notify";
-import { SANTAI_TIMEFRAME } from "@/lib/santai";
+import { SANTAI_TIMEFRAME, tradeTimeframe } from "@/lib/santai";
 import { useScan } from "@/lib/scan";
 import { useTheme } from "@/lib/theme";
 import { themeInfo } from "@/lib/theme-config";
@@ -86,11 +86,12 @@ export default function Dashboard({ isOwner = false }: { isOwner?: boolean }) {
   const chartBg = themeInfo(useTheme()).chartBg;
   // Backtest every coin in the background (cached daily) so advice can skip unproven coins.
   useEvidence(timeframe, santai.settings, santai.loaded && santai.settings.evidenceOnly);
-  // Once the saved settings arrive, open on Mode Santai's 4h candle if it is on.
-  const [santaiApplied, setSantaiApplied] = useState(false);
-  if (santai.loaded && !santaiApplied) {
-    setSantaiApplied(true);
-    if (santai.settings.enabled) setTimeframe(TIMEFRAMES[SANTAI_TIMEFRAME]);
+  // When the saved settings arrive, and whenever the trading style changes, switch to its candle.
+  const style = santai.loaded ? tradeTimeframe(santai.settings) : null;
+  const [appliedStyle, setAppliedStyle] = useState<Timeframe | null>(null);
+  if (style && style !== appliedStyle) {
+    setAppliedStyle(style);
+    setTimeframe(style);
   }
   // Scan every coin only while someone looks at the scanner or alerts need it.
   const scan = useScan(timeframe, tab === "pemindai" || alertsOn);

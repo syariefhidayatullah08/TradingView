@@ -1,5 +1,6 @@
 import type { Decision } from "./decision";
 import type { Position } from "./positions";
+import { TIMEFRAMES, type Timeframe } from "./symbols";
 
 // Mode Santai: a relaxed spot plan for a small "cold money" budget. Only the largest coins,
 // only confident buys, capital split into equal parts, and each part sold at a fixed net profit
@@ -24,6 +25,9 @@ export type SantaiSettings = {
   // Price-structure reversal entries (lib/structure.ts). Backtested 2026-10: better in normal mode
   // (1h +17.9% → +22.6%, 4h -15.6% → -9.1%) but worse in Mode Santai, so it never applies there.
   structure: boolean;
+  // Weekly trading style: advice, alerts and the scanner use the daily candle instead of 1h.
+  // Backtested 2026-10 on 10 coins since 2019: trades held about 9 days, checked once a day.
+  swing: boolean;
   // Risk manager (see lib/risk.ts).
   riskPct: number;
   weeklyLossPct: number;
@@ -44,6 +48,7 @@ export const DEFAULT_SANTAI: SantaiSettings = {
   trailing: true,
   evidenceOnly: true,
   structure: true,
+  swing: false,
   riskPct: 1.5,
   weeklyLossPct: 6,
   dcaEnabled: false,
@@ -73,6 +78,7 @@ export function sanitizeSantai(raw: unknown): SantaiSettings {
     trailing: r.trailing !== false,
     evidenceOnly: r.evidenceOnly !== false,
     structure: r.structure !== false,
+    swing: r.swing === true,
     riskPct: clamp(r.riskPct, 0.25, 5, DEFAULT_SANTAI.riskPct),
     weeklyLossPct: clamp(r.weeklyLossPct, 1, 30, DEFAULT_SANTAI.weeklyLossPct),
     dcaEnabled: r.dcaEnabled === true,
@@ -80,6 +86,11 @@ export function sanitizeSantai(raw: unknown): SantaiSettings {
     dcaDay: Math.round(clamp(r.dcaDay, 0, 6, DEFAULT_SANTAI.dcaDay)),
     dcaBtcPct: Math.round(clamp(r.dcaBtcPct, 0, 100, DEFAULT_SANTAI.dcaBtcPct)),
   };
+}
+
+// The candle the app trades on: 4h in Mode Santai, daily for the weekly style, otherwise 1h.
+export function tradeTimeframe(s: SantaiSettings): Timeframe {
+  return TIMEFRAMES[s.enabled ? SANTAI_TIMEFRAME : s.swing ? 3 : 1];
 }
 
 // USDT to spend on one buy.

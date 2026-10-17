@@ -3,8 +3,9 @@
 import { useState } from "react";
 import { MARKET_INTERVAL, MARKET_SYMBOL } from "@/lib/advice";
 import { BACKTEST_WINDOW, FEES_NOTE, runBacktest, type BacktestOptions, type BacktestResult } from "@/lib/backtest";
+import { backtestOptions } from "@/lib/evidence";
 import type { Candle } from "@/lib/indicators";
-import { SANTAI_MIN_CONFIDENCE, type SantaiSettings } from "@/lib/santai";
+import { SANTAI_MIN_CONFIDENCE, tradeTimeframe, type SantaiSettings } from "@/lib/santai";
 import { useSantai } from "@/lib/use-santai";
 import { BINANCE_API, COINS, formatPrice, higherTimeframe, TIMEFRAMES, type Coin, type Timeframe } from "@/lib/symbols";
 
@@ -81,6 +82,139 @@ function variants(s: SantaiSettings): Variant[] {
     { name: "Sensitif + trailing", note: "beli lebih cepat", opts: { ...base, sensitive: true, trailing: true } },
     { name: "Filter BTC + trailing", note: "tahan saat BTC turun", opts: { ...base, btcFilter: true, trailing: true } },
   ];
+}
+
+const DAY_MS = 86_400_000;
+// Timeframes compared over the same stretch of time.
+const COMPARE = TESTABLE.filter((t) => t.binance !== "15m");
+const COMPARE_DAYS = [180, 365, 730];
+
+// Candles covering the last `days` plus the warm-up window the strategy needs before it.
+async function span(symbol: string, interval: string, days: number): Promise<Candle[]> {
+  const ms = INTERVAL_MS[interval];
+  const need = Math.ceil((days * DAY_MS) / ms) + BACKTEST_WINDOW;
+  const candles = await history(symbol, interval, Math.ceil(need / PAGE));
+  return candles.slice(-need);
+}
+
+type Compared = { tf: Timeframe; r: BacktestResult; actualDays: number };
+
+// The same strategy on each candle size over the same period, so the sizes can be compared fairly.
+function CompareTimeframes({ coin, settings }: { coin: Coin; settings: SantaiSettings }) {
+  const [days, setDays] = useState(365);
+  const [progress, setProgress] = useState<number | null>(null);
+  const [rows, setRows] = useState<Compared[] | null>(null);
+  const [error, setError] = useState<string | null>(null);
+  const mine = tradeTimeframe(settings);
+
+  async function run() {
+    setError(null);
+    setRows(null);
+    setProgress(0);
+    try {
+      const btc = await history(MARKET_SYMBOL, MARKET_INTERVAL, Math.ceil((days + BACKTEST_WINDOW) / PAGE));
+      const out: Compared[] = [];
+      for (let k = 0; k < COMPARE.length; k++) {
+        const tf = COMPARE[k];
+        const higher = higherTimeframe(tf);
+        const [candles, big] = await Promise.all([
+          span(coin.symbol, tf.binance, days),
+          higher ? span(coin.symbol, higher.binance, days) : Promise.resolve(null),
+        ]);
+        if (candles.length <= BACKTEST_WINDOW + 20) continue;
+        const r = await runBacktest(
+          {
+            candles,
+            intervalMs: INTERVAL_MS[tf.binance],
+            higher: big,
+            higherMs: higher ? INTERVAL_MS[higher.binance] : 0,
+            higherLabel: higher?.label ?? null,
+            btcDaily: btc,
+          },
+          backtestOptions(settings),
+          (done) => setProgress((k + done) / COMPARE.length),
+        );
+        out.push({ tf, r, actualDays: Math.round((r.to - r.from) / DAY_MS) });
+      }
+      setRows(out);
+    } catch (e) {
+      setError(e instanceof Error ? e.message : "Uji gagal");
+    } finally {
+      setProgress(null);
+    }
+  }
+
+  return (
+    <div className="rounded bg-base p-3">
+      <div className="text-[11px] uppercase tracking-wide text-muted">Bandingkan ukuran candle (periode sama)</div>
+      <div className="mt-2 flex flex-wrap items-end gap-3">
+        <label className="text-[11px] text-muted">
+          Periode
+          <select
+            value={days}
+            onChange={(e) => setDays(Number(e.target.value))}
+            className="mt-1 block rounded border border-line bg-panel px-2 py-1.5 text-sm text-fg"
+          >
+            {COMPARE_DAYS.map((d) => (
+              <option key={d} value={d}>
+                {d < 365 ? `${d / 30} bulan` : `${d / 365} tahun`} terakhir
+              </option>
+            ))}
+          </select>
+        </label>
+        <button
+          onClick={run}
+          disabled={progress !== null}
+          className="rounded btn-active px-4 py-2 text-xs font-semibold text-white disabled:opacity-60"
+        >
+          {progress !== null ? `Menguji… ${Math.round(progress * 100)}%` : `▶ Bandingkan ${COMPARE.map((t) => t.label).join(" / ")}`}
+        </button>
+        <span className="text-[11px] text-muted">{coin.base} · pengaturan Anda · bisa makan waktu hingga 1 menit</span>
+      </div>
+      {error && <p className="mt-2 text-sm text-down">{error}</p>}
+      {rows && rows.length > 0 && (
+        <div className="mt-2 overflow-x-auto">
+          <table className="w-full text-xs">
+            <thead>
+              <tr className="text-[11px] uppercase tracking-wide text-muted">
+                <th className="py-1.5 text-left font-medium">Candle</th>
+                <th className="py-1.5 text-right font-medium">Hasil bersih</th>
+                <th className="py-1.5 text-right font-medium">Beli-tahan</th>
+                <th className="py-1.5 text-right font-medium">Trade</th>
+                <th className="py-1.5 text-right font-medium">Menang</th>
+                <th className="py-1.5 text-right font-medium">Turun terdalam</th>
+                <th className="py-1.5 text-right font-medium">Rata2 tahan</th>
+              </tr>
+            </thead>
+            <tbody>
+              {rows.map(({ tf, r, actualDays }) => {
+                const closed = r.wins + r.losses;
+                return (
+                  <tr key={tf.tv} className={`border-t border-line ${tf.tv === mine.tv ? "font-semibold" : ""}`}>
+                    <td className="py-1.5">
+                      {tf.label}
+                      {tf.tv === mine.tv && <span className="font-normal text-muted"> (gaya Anda)</span>}
+                      {actualDays < days - 7 && <span className="font-normal text-muted"> · data {actualDays} hari</span>}
+                    </td>
+                    <td className={`py-1.5 text-right font-mono ${r.totalPct >= 0 ? "text-up" : "text-down"}`}>{pct(r.totalPct)}</td>
+                    <td className={`py-1.5 text-right font-mono ${r.buyHoldPct >= 0 ? "text-up" : "text-down"}`}>{pct(r.buyHoldPct)}</td>
+                    <td className="py-1.5 text-right font-mono">{closed}</td>
+                    <td className="py-1.5 text-right font-mono">{closed ? `${Math.round((r.wins / closed) * 100)}%` : "—"}</td>
+                    <td className="py-1.5 text-right font-mono text-down">-{r.maxDrawdownPct.toFixed(1)}%</td>
+                    <td className="py-1.5 text-right font-mono">{holdText(r.avgHoldHours)}</td>
+                  </tr>
+                );
+              })}
+            </tbody>
+          </table>
+        </div>
+      )}
+      <p className="mt-2 text-[11px] text-muted">
+        Semua ukuran candle diuji pada rentang tanggal yang sama, jadi hasilnya bisa dibandingkan langsung. Satu koin
+        dan satu periode bisa kebetulan; coba beberapa koin sebelum memutuskan.
+      </p>
+    </div>
+  );
 }
 
 function pct(n: number): string {
@@ -286,6 +420,8 @@ export default function BacktestPanel({ coin: initialCoin, timeframe: initialTf 
             )}
           </>
         )}
+
+        <CompareTimeframes coin={coin} settings={settings} />
 
         <p className="text-[11px] text-muted">
           Simulasi satu posisi sekaligus memakai keputusan yang sama dengan &ldquo;Mulai Trading&rdquo;, hanya dari

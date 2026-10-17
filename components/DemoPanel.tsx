@@ -511,7 +511,7 @@ export default function DemoPanel({ coin, onSelect }: { coin: Coin; onSelect: (c
             )}
           </div>
           <p className="mt-1 text-[11px] text-muted">
-            Saat Anda membeli, aplikasi mencatat sarannya untuk koin itu (candle 1j, atau 4j di Mode Santai). Setelah
+            Saat Anda membeli, aplikasi mencatat sarannya untuk koin itu (candle sesuai gaya trading Anda: 1j, 1H untuk gaya mingguan, atau 4j di Mode Santai). Setelah
             beberapa minggu terlihat apakah mengikuti saran BELI memang lebih untung. Transaksi sebelum fitur ini ada
             tidak punya catatan saran.
           </p>

@@ -7,8 +7,8 @@ import { evaluate, type Verdict } from "./positions";
 import { expand, sanitizePositions } from "./positions-store";
 import { ALERT_INTERVAL, reached, unpackAlerts } from "./price-alerts";
 import { applyLock, weeklyLock } from "./risk";
-import { partUsdt, SANTAI_COINS, sanitizeSantai, type SantaiSettings } from "./santai";
-import { COINS, formatPrice, higherTimeframe, TIMEFRAMES } from "./symbols";
+import { partUsdt, SANTAI_COINS, sanitizeSantai, tradeTimeframe, type SantaiSettings } from "./santai";
+import { COINS, formatPrice, higherTimeframe } from "./symbols";
 import { reportDue, weekId, weeklyReport, type AdviceCount } from "./weekly-report";
 
 // Server-side alerts for Telegram, run on a schedule: the same advice the app shows, checked
@@ -90,7 +90,7 @@ export async function alertsFor(
   const fresh = !meta.tgState;
   const messages: string[] = [];
 
-  const tf = settings.enabled ? TIMEFRAMES[2] : TIMEFRAMES[1];
+  const tf = tradeTimeframe(settings);
   const higher = higherTimeframe(tf);
   const coins = scannedCoins(settings);
   const positions = sanitizePositions(meta.positions);
