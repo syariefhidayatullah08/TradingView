@@ -8,6 +8,7 @@ import { expand, sanitizePositions } from "./positions-store";
 import { applyLock, weeklyLock } from "./risk";
 import { partUsdt, SANTAI_COINS, sanitizeSantai, type SantaiSettings } from "./santai";
 import { COINS, formatPrice, higherTimeframe, TIMEFRAMES } from "./symbols";
+import { reportDue, weekId, weeklyReport, type AdviceCount } from "./weekly-report";
 
 // Server-side alerts for Telegram, run on a schedule: the same advice the app shows, checked
 // for every linked user even when the app is closed.
@@ -25,11 +26,38 @@ export type AlertState = {
   v: Record<string, Verdict>;
   // Day the DCA reminder was sent.
   d: string;
+  // Week (its Monday) the weekly report was sent, and the demo account value at that time.
+  w?: string;
+  e?: number;
 };
 
 export function readState(raw: unknown): AlertState {
   const r = (raw ?? {}) as Partial<AlertState>;
-  return { a: r.a ?? {}, t: r.t ?? {}, v: r.v ?? {}, d: typeof r.d === "string" ? r.d : "" };
+  return {
+    a: r.a ?? {},
+    t: r.t ?? {},
+    v: r.v ?? {},
+    d: typeof r.d === "string" ? r.d : "",
+    ...(typeof r.w === "string" ? { w: r.w } : {}),
+    ...(typeof r.e === "number" && Number.isFinite(r.e) ? { e: r.e } : {}),
+  };
+}
+
+// Coins the scan checks for these settings.
+export function scannedCoins(settings: SantaiSettings) {
+  return settings.enabled ? COINS.filter((c) => SANTAI_COINS.includes(c.symbol)) : COINS;
+}
+
+// How many of the scanned coins currently get each action, from the last scan.
+export function adviceCount(state: AlertState, settings: SantaiSettings): AdviceCount {
+  const codes = scannedCoins(settings)
+    .map((c) => state.a[c.symbol])
+    .filter((c) => c !== undefined);
+  return {
+    beli: codes.filter((c) => c === ACTION_CODE.beli).length,
+    tunggu: codes.filter((c) => c === ACTION_CODE.tunggu).length,
+    jangan: codes.filter((c) => c === ACTION_CODE.jangan).length,
+  };
 }
 
 // Candles shared across all users within one run.
@@ -57,13 +85,13 @@ export async function alertsFor(
   const meta = data.private;
   const settings: SantaiSettings = sanitizeSantai(meta.santai);
   const prev = readState(meta.tgState);
-  const state: AlertState = { a: { ...prev.a }, t: { ...prev.t }, v: {}, d: prev.d };
+  const state: AlertState = { ...prev, a: { ...prev.a }, t: { ...prev.t }, v: {} };
   const fresh = !meta.tgState;
   const messages: string[] = [];
 
   const tf = settings.enabled ? TIMEFRAMES[2] : TIMEFRAMES[1];
   const higher = higherTimeframe(tf);
-  const coins = settings.enabled ? COINS.filter((c) => SANTAI_COINS.includes(c.symbol)) : COINS;
+  const coins = scannedCoins(settings);
   const positions = sanitizePositions(meta.positions);
   const trades = expand(meta.trades);
   const capitalUsdt = data.idrPerUsdt ? settings.capitalIdr / data.idrPerUsdt : null;
@@ -120,6 +148,13 @@ export async function alertsFor(
         .map(([s, v]) => `${s.replace("USDT", "")} Rp ${Math.round(v * data.idrPerUsdt!).toLocaleString("id-ID")}`);
       messages.push(`🗓️ <b>Jadwal DCA minggu ini</b>\nBeli ${parts.join(" dan ")} di Tokocrypto, lalu catat di tab Inti (DCA).`);
     }
+  }
+
+  if (!fresh && reportDue(now, state.w ?? "")) {
+    const report = await weeklyReport(meta, btc, adviceCount(state, settings), state.e ?? null, now);
+    messages.push(report.text);
+    state.w = weekId(now);
+    if (report.equity !== null) state.e = Math.round(report.equity * 100) / 100;
   }
 
   return { messages, state: fresh ? { ...state, t: {} } : state };

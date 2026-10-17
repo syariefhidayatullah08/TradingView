@@ -29,7 +29,6 @@ export const COINS: Coin[] = [
   { symbol: "UNIUSDT", base: "UNI", name: "Uniswap", gecko: "uniswap", toko: true, tokoIdr: false },
   { symbol: "SUIUSDT", base: "SUI", name: "Sui", gecko: "sui", toko: true, tokoIdr: true },
   { symbol: "HBARUSDT", base: "HBAR", name: "Hedera", gecko: "hedera-hashgraph", toko: true, tokoIdr: true },
-  { symbol: "TONUSDT", base: "TON", name: "Toncoin", gecko: "the-open-network", toko: false, tokoIdr: false },
   { symbol: "SHIBUSDT", base: "SHIB", name: "Shiba Inu", gecko: "shiba-inu", toko: true, tokoIdr: false },
 ];
 

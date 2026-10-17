@@ -75,7 +75,8 @@ export default function TelegramSettings() {
         )}
         <p className="text-[11px] text-muted">
           Pesan dikirim saat koin berubah jadi BELI (candle 4j di Mode Santai, 1j di mode normal), saat posisi Anda
-          waktunya JUAL atau AMANKAN, dan pada jadwal DCA. Diperiksa sekitar setiap 15 menit.
+          waktunya JUAL atau AMANKAN, pada jadwal DCA, dan laporan mingguan setiap Senin pukul 08.00 WIB. Diperiksa sekitar setiap 15
+          menit. Ketik /laporan di bot untuk laporan kapan saja.
         </p>
         {status?.isOwner && status.configured && (
           <div className="flex flex-wrap items-center gap-2 border-t border-line pt-3">
