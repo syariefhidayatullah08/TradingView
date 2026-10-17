@@ -1,5 +1,6 @@
 import { clerkClient } from "@clerk/nextjs/server";
 import { isOwnerEmail } from "@/lib/access";
+import { packAlerts, unpackAlerts } from "@/lib/price-alerts";
 import { alertsFor, candleCache } from "@/lib/alerts-server";
 import { sendMessage, telegramConfigured } from "@/lib/telegram";
 
@@ -45,9 +46,15 @@ export async function GET(request: Request) {
   for (const u of linked) {
     const chatId = (u.privateMetadata.telegram as { chatId: number }).chatId;
     try {
-      const { messages, state } = await alertsFor({ private: u.privateMetadata, idrPerUsdt }, candles, now);
+      const { messages, state, fired } = await alertsFor({ private: u.privateMetadata, idrPerUsdt }, candles, now);
       for (const m of messages) if (await sendMessage(chatId, m)) sent++;
-      await client.users.updateUserMetadata(u.id, { privateMetadata: { tgState: state } });
+      const update: Record<string, unknown> = { tgState: state };
+      if (fired.length) {
+        // Re-read so an alarm added during this run is kept.
+        const fresh = await client.users.getUser(u.id);
+        update.priceAlerts = packAlerts(unpackAlerts(fresh.privateMetadata.priceAlerts).filter((a) => !fired.includes(a.id)));
+      }
+      await client.users.updateUserMetadata(u.id, { privateMetadata: update });
     } catch {
       // One user's failure must not stop the others.
     }

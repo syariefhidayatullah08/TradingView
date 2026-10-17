@@ -5,6 +5,7 @@ import type { Action } from "./decision";
 import type { Candle } from "./indicators";
 import { evaluate, type Verdict } from "./positions";
 import { expand, sanitizePositions } from "./positions-store";
+import { ALERT_INTERVAL, reached, unpackAlerts } from "./price-alerts";
 import { applyLock, weeklyLock } from "./risk";
 import { partUsdt, SANTAI_COINS, sanitizeSantai, type SantaiSettings } from "./santai";
 import { COINS, formatPrice, higherTimeframe, TIMEFRAMES } from "./symbols";
@@ -81,7 +82,7 @@ export async function alertsFor(
   data: UserData,
   candles: ReturnType<typeof candleCache>,
   now: number,
-): Promise<{ messages: string[]; state: AlertState }> {
+): Promise<{ messages: string[]; state: AlertState; fired: string[] }> {
   const meta = data.private;
   const settings: SantaiSettings = sanitizeSantai(meta.santai);
   const prev = readState(meta.tgState);
@@ -150,6 +151,19 @@ export async function alertsFor(
     }
   }
 
+  // Price alarms fire once, then are removed by the caller.
+  const fired: string[] = [];
+  for (const a of unpackAlerts(meta.priceAlerts)) {
+    const c = await candles(a.symbol, ALERT_INTERVAL);
+    if (!c || c.length === 0 || !reached(a, c)) continue;
+    fired.push(a.id);
+    const base = COINS.find((x) => x.symbol === a.symbol)?.base ?? a.symbol;
+    messages.push(
+      `🔔 <b>Alarm ${base}: harga ${a.dir === 1 ? "naik ke" : "turun ke"} ${formatPrice(a.price)}</b>
+Harga sekarang ${formatPrice(c[c.length - 1].close)}.${a.dir === -1 ? " Cek saran Mulai Trading sebelum membeli." : ""}`,
+    );
+  }
+
   if (!fresh && reportDue(now, state.w ?? "")) {
     const report = await weeklyReport(meta, btc, adviceCount(state, settings), state.e ?? null, now);
     messages.push(report.text);
@@ -157,6 +171,6 @@ export async function alertsFor(
     if (report.equity !== null) state.e = Math.round(report.equity * 100) / 100;
   }
 
-  return { messages, state: fresh ? { ...state, t: {} } : state };
+  return { messages, state: fresh ? { ...state, t: {} } : state, fired };
 }
 

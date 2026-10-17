@@ -14,6 +14,7 @@ import MarketDirection from "./MarketDirection";
 import MarketTable from "./MarketTable";
 import NewsPanel from "./NewsPanel";
 import PositionsPanel from "./PositionsPanel";
+import PriceAlerts from "./PriceAlerts";
 import RealtimeCharts from "./RealtimeCharts";
 import { SantaiToggle } from "./SantaiSettings";
 import ScannerPanel from "./ScannerPanel";
@@ -210,7 +211,12 @@ export default function Dashboard({ isOwner = false }: { isOwner?: boolean }) {
 
           {tab === "ai" && <AiAnalysisPanel coin={coin} />}
           {tab === "demo" && <DemoPanel coin={coin} onSelect={setCoin} />}
-          {tab === "dca" && <DcaPanel />}
+          {tab === "dca" && (
+            <>
+              <DcaPanel />
+              <PriceAlerts coin={coin} />
+            </>
+          )}
           {tab === "uji" && <BacktestPanel coin={coin} timeframe={timeframe} />}
           {tab === "pemindai" && (
             <ScannerPanel rows={scan} timeframe={timeframe} selected={coin.symbol} onSelect={setCoin} />
@@ -251,7 +257,12 @@ export default function Dashboard({ isOwner = false }: { isOwner?: boolean }) {
               </section>
             </div>
           )}
-          {tab === "posisi" && <PositionsPanel coin={coin} timeframe={timeframe} />}
+          {tab === "posisi" && (
+            <>
+              <PositionsPanel coin={coin} timeframe={timeframe} />
+              <PriceAlerts coin={coin} />
+            </>
+          )}
           {tab === "fundamental" && <FundamentalPanel coin={coin} />}
           {tab === "pengaturan" && <SettingsPanel isOwner={isOwner} />}
           {tab === "berita" && <NewsPanel />}
