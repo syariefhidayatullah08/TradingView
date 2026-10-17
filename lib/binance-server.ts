@@ -14,3 +14,18 @@ export async function livePrice(symbol: string): Promise<number | null> {
     return null;
   }
 }
+
+// Close of the hourly candle that ended around `time`, for prices in the past.
+export async function priceAt(symbol: string, time: number): Promise<number | null> {
+  try {
+    const res = await fetch(`${BINANCE_API}/klines?symbol=${symbol}&interval=1h&startTime=${time - 3_600_000}&limit=1`, {
+      cache: "no-store",
+      signal: AbortSignal.timeout(6000),
+    });
+    if (!res.ok) return null;
+    const price = Number((await res.json())?.[0]?.[4]);
+    return Number.isFinite(price) && price > 0 ? price : null;
+  } catch {
+    return null;
+  }
+}

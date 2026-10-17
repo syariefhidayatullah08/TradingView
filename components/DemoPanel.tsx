@@ -1,7 +1,17 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
-import { baseOf, DEMO_FEE_PCT, DEMO_START_USDT, type DemoAccount, type DemoTrade, type Side } from "@/lib/demo";
+import {
+  ADVICE_LABEL,
+  baseOf,
+  DEMO_FEE_PCT,
+  DEMO_START_USDT,
+  type Advice,
+  type Bucket,
+  type DemoAccount,
+  type DemoTrade,
+  type Side,
+} from "@/lib/demo";
 import { getLive, subscribeLive, useLiveCandles } from "@/lib/live-candles";
 import { BINANCE_API, COINS, formatPrice, type Coin } from "@/lib/symbols";
 
@@ -10,6 +20,26 @@ const PRICE_REFRESH_MS = 1500;
 
 function usd(n: number): string {
   return `${n < 0 ? "-" : ""}$${Math.abs(n).toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
+}
+
+const ADVICE_CLASS: Record<Advice, string> = { 0: "text-up", 1: "text-amber-300", 2: "text-down" };
+
+function AdviceTag({ advice }: { advice: Advice | null }) {
+  if (advice === null) return <span className="text-muted">—</span>;
+  return <span className={ADVICE_CLASS[advice]}>{ADVICE_LABEL[advice]}</span>;
+}
+
+function BucketRow({ label, b }: { label: string; b: Bucket }) {
+  return (
+    <tr className="border-t border-line">
+      <td className="py-1.5">{label}</td>
+      <td className="py-1.5 text-right font-mono">{b.n}</td>
+      <td className="py-1.5 text-right font-mono">{b.n ? `${Math.round((b.wins / b.n) * 100)}%` : "—"}</td>
+      <td className={`py-1.5 text-right font-mono ${b.n === 0 ? "text-muted" : b.pnl >= 0 ? "text-up" : "text-down"}`}>
+        {b.n ? signedUsd(b.pnl) : "—"}
+      </td>
+    </tr>
+  );
 }
 
 function signedUsd(n: number): string {
@@ -278,7 +308,8 @@ export default function DemoPanel({ coin, onSelect }: { coin: Coin; onSelect: (c
     };
   }, []);
 
-  const held = useMemo(() => account?.holdings.map((h) => h.symbol) ?? [], [account]);
+  // Held coins plus BTC, for the comparison with simply holding BTC.
+  const held = useMemo(() => [...new Set([...(account?.holdings.map((h) => h.symbol) ?? []), "BTCUSDT"])], [account]);
   const prices = useLivePrices(held);
 
   // Keep the main chart on the coin being traded when the app knows it.
@@ -328,6 +359,9 @@ export default function DemoPanel({ coin, onSelect }: { coin: Coin; onSelect: (c
   );
   const equity = account.cash + coinsValue;
   const total = equity - DEMO_START_USDT;
+  const btcNow = prices.BTCUSDT;
+  const btcPct = account.btcStart && btcNow ? ((btcNow - account.btcStart) / account.btcStart) * 100 : null;
+  const accountPct = (total / DEMO_START_USDT) * 100;
 
   return (
     <section className="panel">
@@ -410,6 +444,7 @@ export default function DemoPanel({ coin, onSelect }: { coin: Coin; onSelect: (c
                     <th className="py-1 text-right font-medium">Harga sekarang</th>
                     <th className="py-1 text-right font-medium">Nilai</th>
                     <th className="py-1 text-right font-medium">Untung/rugi</th>
+                    <th className="py-1 text-right font-medium">Saran saat beli</th>
                   </tr>
                 </thead>
                 <tbody>
@@ -431,6 +466,9 @@ export default function DemoPanel({ coin, onSelect }: { coin: Coin; onSelect: (c
                         <td className={`py-1.5 text-right ${pnl === null ? "" : pnl >= 0 ? "text-up" : "text-down"}`}>
                           {pnl !== null ? `${signedUsd(pnl)} (${((pnl / h.cost) * 100).toFixed(2)}%)` : "…"}
                         </td>
+                        <td className="py-1.5 text-right font-sans">
+                          <AdviceTag advice={h.tag} />
+                        </td>
                       </tr>
                     );
                   })}
@@ -438,6 +476,45 @@ export default function DemoPanel({ coin, onSelect }: { coin: Coin; onSelect: (c
               </table>
             </div>
           )}
+        </div>
+
+        <div className="rounded bg-base p-3">
+          <div className="mb-1 text-[11px] uppercase tracking-wide text-muted">Bukti: ikut saran aplikasi atau tidak?</div>
+          <table className="w-full text-xs">
+            <thead>
+              <tr className="text-[11px] text-muted">
+                <th className="py-1 text-left font-medium">Koin yang dijual</th>
+                <th className="py-1 text-right font-medium">Penjualan</th>
+                <th className="py-1 text-right font-medium">Untung</th>
+                <th className="py-1 text-right font-medium">Hasil bersih</th>
+              </tr>
+            </thead>
+            <tbody>
+              <BucketRow label="Dibeli saat saran BELI" b={account.followed} />
+              <BucketRow label="Dibeli tanpa saran BELI" b={account.other} />
+            </tbody>
+          </table>
+          <div className="mt-2 text-xs">
+            Akun demo{" "}
+            <b className={pending ? "text-muted" : accountPct >= 0 ? "text-up" : "text-down"}>
+              {pending ? "…" : `${accountPct >= 0 ? "+" : ""}${accountPct.toFixed(2)}%`}
+            </b>{" "}
+            vs beli BTC lalu tahan sejak akun dimulai{" "}
+            <b className={btcPct === null ? "text-muted" : btcPct >= 0 ? "text-up" : "text-down"}>
+              {btcPct === null ? "…" : `${btcPct >= 0 ? "+" : ""}${btcPct.toFixed(2)}%`}
+            </b>
+            {!pending && btcPct !== null && (
+              <span className="text-muted">
+                {" "}
+                · {accountPct >= btcPct ? "trading Anda lebih baik" : "menahan BTC lebih baik"} sejauh ini
+              </span>
+            )}
+          </div>
+          <p className="mt-1 text-[11px] text-muted">
+            Saat Anda membeli, aplikasi mencatat sarannya untuk koin itu (candle 1j, atau 4j di Mode Santai). Setelah
+            beberapa minggu terlihat apakah mengikuti saran BELI memang lebih untung. Transaksi sebelum fitur ini ada
+            tidak punya catatan saran.
+          </p>
         </div>
 
         {account.trades.length > 0 && (
@@ -450,6 +527,11 @@ export default function DemoPanel({ coin, onSelect }: { coin: Coin; onSelect: (c
                     <td className="py-1 font-sans text-muted">{when(t.time)}</td>
                     <td className={`py-1 font-sans font-semibold ${t.side === "beli" ? "text-up" : "text-down"}`}>
                       {t.side === "beli" ? "BELI" : "JUAL"} {baseOf(t.symbol)}
+                      {t.side === "beli" && t.advice !== null && (
+                        <span className="ml-1 text-[10px] font-normal">
+                          (saran <AdviceTag advice={t.advice} />)
+                        </span>
+                      )}
                     </td>
                     <td className="py-1 text-right">
                       {qtyText(t.qty)} @ ${formatPrice(t.price)}

@@ -86,6 +86,18 @@ export async function weeklyReport(
         ? `${week.filter((t) => t.side === "beli").length} beli, ${week.filter((t) => t.side === "jual").length} jual, untung/rugi terealisasi ${usd(realized)}.`
         : "Tidak ada transaksi minggu ini.",
     );
+    const { followed, other } = demo;
+    if (followed.n || other.n) {
+      lines.push(
+        `Ikut saran BELI: ${followed.n} jual, hasil ${usd(followed.pnl)}. Tanpa saran BELI: ${other.n} jual, hasil ${usd(other.pnl)}.`,
+      );
+    }
+    const btcNow = btcDaily?.[btcDaily.length - 1]?.close;
+    if (demo.btcStart && btcNow) {
+      lines.push(
+        `Dibanding beli BTC lalu tahan sejak akun dimulai: ${pct(((btcNow - demo.btcStart) / demo.btcStart) * 100)}.`,
+      );
+    }
     if (held.length) {
       lines.push(
         `Dipegang: ${held
