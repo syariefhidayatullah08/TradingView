@@ -15,6 +15,10 @@ import { reportDue, weekId, weeklyReport, type AdviceCount } from "./weekly-repo
 // for every linked user even when the app is closed.
 
 const COOLDOWN_MS = 60 * 60_000;
+// At most one BUY alert per hour: when several coins turn BUY together, the strongest is sent
+// and the others wait their turn for as long as they stay BUY.
+const BUY_GAP_MS = 55 * 60_000;
+const PENDING_MS = 3 * 3600_000;
 const ACTION_CODE: Record<Action, number> = { beli: 0, tunggu: 1, jangan: 2 };
 
 // What was already reported, so each change is sent once.
@@ -23,6 +27,10 @@ export type AlertState = {
   a: Record<string, number>;
   // Last BUY alert time per coin.
   t: Record<string, number>;
+  // Coins that turned BUY but have not been sent yet, with the time they turned.
+  p: Record<string, number>;
+  // Time of the last BUY alert for any coin.
+  b?: number;
   // Last verdict per open position.
   v: Record<string, Verdict>;
   // Day the DCA reminder was sent.
@@ -37,6 +45,8 @@ export function readState(raw: unknown): AlertState {
   return {
     a: r.a ?? {},
     t: r.t ?? {},
+    p: r.p ?? {},
+    ...(typeof r.b === "number" ? { b: r.b } : {}),
     v: r.v ?? {},
     d: typeof r.d === "string" ? r.d : "",
     ...(typeof r.w === "string" ? { w: r.w } : {}),
@@ -66,7 +76,11 @@ export function candleCache() {
   const cache = new Map<string, Promise<Candle[] | null>>();
   return (symbol: string, interval: string) => {
     const key = `${symbol}:${interval}`;
-    if (!cache.has(key)) cache.set(key, fetchCandles(symbol, interval, 300).catch(() => null));
+    if (!cache.has(key))
+      cache.set(
+        key,
+        fetchCandles(symbol, interval, 300).catch(() => null),
+      );
     return cache.get(key)!;
   };
 }
@@ -86,7 +100,7 @@ export async function alertsFor(
   const meta = data.private;
   const settings: SantaiSettings = sanitizeSantai(meta.santai);
   const prev = readState(meta.tgState);
-  const state: AlertState = { ...prev, a: { ...prev.a }, t: { ...prev.t }, v: {} };
+  const state: AlertState = { ...prev, a: { ...prev.a }, t: { ...prev.t }, p: { ...prev.p }, v: {} };
   const fresh = !meta.tgState;
   const messages: string[] = [];
 
@@ -98,6 +112,11 @@ export async function alertsFor(
   const capitalUsdt = data.idrPerUsdt ? settings.capitalIdr / data.idrPerUsdt : null;
   const lock = capitalUsdt ? weeklyLock(trades, capitalUsdt, settings, now) : null;
   const btc = await candles(MARKET_SYMBOL, MARKET_INTERVAL);
+  const buys: {
+    coin: (typeof coins)[number];
+    d: NonNullable<ReturnType<typeof applyLock>>;
+    since: number;
+  }[] = [];
 
   for (const coin of coins) {
     const [c, h] = await Promise.all([
@@ -110,10 +129,29 @@ export async function alertsFor(
     if (!d) continue;
     const before = prev.a[coin.symbol];
     state.a[coin.symbol] = ACTION_CODE[d.action];
+    if (d.action !== "beli") {
+      delete state.p[coin.symbol];
+      continue;
+    }
     // The first run only learns the current state; alerts start from the next change.
-    if (fresh || before === undefined || before === ACTION_CODE.beli || d.action !== "beli") continue;
-    if (now - (prev.t[coin.symbol] ?? 0) < COOLDOWN_MS) continue;
+    const turned = !fresh && before !== undefined && before !== ACTION_CODE.beli;
+    if (turned && now - (prev.t[coin.symbol] ?? 0) >= COOLDOWN_MS) state.p[coin.symbol] = now;
+    const since = state.p[coin.symbol];
+    if (since !== undefined && now - since < PENDING_MS) buys.push({ coin, d, since });
+    else delete state.p[coin.symbol];
+  }
+
+  if (buys.length && now - (prev.b ?? 0) >= BUY_GAP_MS) {
+    const { coin, d, since } = buys.reduce((a, x) => (x.d.confidence > a.d.confidence ? x : a));
+    delete state.p[coin.symbol];
     state.t[coin.symbol] = now;
+    state.b = now;
+    const others = buys.filter((x) => x.coin !== coin).map((x) => x.coin.base);
+    const at = new Date(since).toLocaleTimeString("id-ID", {
+      timeZone: "Asia/Jakarta",
+      hour: "2-digit",
+      minute: "2-digit",
+    });
     const plan = settings.enabled
       ? data.idrPerUsdt
         ? `Beli ${usd(partUsdt(settings, data.idrPerUsdt))} (1 dari ${settings.parts} bagian), jual di untung bersih ${settings.targetPct}%${settings.trailing ? " lalu trailing" : ""}.`
@@ -121,8 +159,11 @@ export async function alertsFor(
       : d.plan
         ? `Stop loss $${formatPrice(d.plan.stop)}, target $${formatPrice(d.plan.target1)}.`
         : "";
+    const queue = others.length
+      ? `\n<i>Juga sedang BELI: ${others.join(", ")}. Dikirim satu per jam selama masih layak.</i>`
+      : "";
     messages.push(
-      `🟢 <b>${coin.base}: waktunya BELI</b> (keyakinan ${d.confidence}%, candle ${tf.label})\nHarga $${formatPrice(d.price)}\n${d.headline}\n${plan}`,
+      `🟢 <b>${coin.base}: waktunya BELI</b> (keyakinan ${d.confidence}%, candle ${tf.label}, sinyal ${at} WIB)\nHarga $${formatPrice(d.price)}\n${d.headline}\n${plan}${queue}`,
     );
   }
 
@@ -146,8 +187,13 @@ export async function alertsFor(
       const plan = split(settings.dcaIdr, settings.dcaBtcPct, data.idrPerUsdt);
       const parts = Object.entries(plan)
         .filter(([, v]) => v > 0)
-        .map(([s, v]) => `${s.replace("USDT", "")} Rp ${Math.round(v * data.idrPerUsdt!).toLocaleString("id-ID")}`);
-      messages.push(`🗓️ <b>Jadwal DCA minggu ini</b>\nBeli ${parts.join(" dan ")} di Tokocrypto, lalu catat di tab Inti (DCA).`);
+        .map(
+          ([s, v]) =>
+            `${s.replace("USDT", "")} Rp ${Math.round(v * data.idrPerUsdt!).toLocaleString("id-ID")}`,
+        );
+      messages.push(
+        `🗓️ <b>Jadwal DCA minggu ini</b>\nBeli ${parts.join(" dan ")} di Tokocrypto, lalu catat di tab Inti (DCA).`,
+      );
     }
   }
 
@@ -171,6 +217,5 @@ Harga sekarang ${formatPrice(c[c.length - 1].close)}.${a.dir === -1 ? " Cek sara
     if (report.equity !== null) state.e = Math.round(report.equity * 100) / 100;
   }
 
-  return { messages, state: fresh ? { ...state, t: {} } : state, fired };
+  return { messages, state: fresh ? { ...state, t: {}, p: {} } : state, fired };
 }
-

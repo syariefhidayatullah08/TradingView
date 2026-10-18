@@ -143,7 +143,7 @@ async function gather(coin: Coin) {
 
 type Inputs = Awaited<ReturnType<typeof gather>>;
 
-const SYSTEM = `Kamu analis pasar crypto untuk aplikasi KriptoScope. Pengguna adalah trader ritel Indonesia yang bertransaksi di pasar SPOT Tokocrypto, jadi ia hanya untung jika harga naik setelah membeli (tidak bisa short).
+const SYSTEM = `Kamu analis pasar crypto untuk aplikasi MarketScope. Pengguna adalah trader ritel Indonesia yang bertransaksi di pasar SPOT Tokocrypto, jadi ia hanya untung jika harga naik setelah membeli (tidak bisa short).
 
 Tugasmu: dari data yang diberikan, simpulkan arah pasar koin dan nilai apakah koin itu layak dibeli untuk trading jangka pendek (harian), menengah (mingguan), dan panjang (bulanan ke atas).
 

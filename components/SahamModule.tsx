@@ -18,6 +18,7 @@ import {
 import EconomicCalendar from "./EconomicCalendar";
 import NewsPanel from "./NewsPanel";
 import SahamChart from "./SahamChart";
+import SahamTechnical from "./SahamTechnical";
 import SettingsPanel from "./SettingsPanel";
 
 const toneClass: Record<Signal, string> = { 1: "text-up", 0: "text-muted", [-1]: "text-down" };
@@ -32,6 +33,7 @@ const regimeTone: Record<keyof typeof regimeText, Signal> = { naik: 1, netral: 0
 const TABS = [
   { id: "rencana", label: "Rencana Modal" },
   { id: "peringkat", label: "Peringkat Saham" },
+  { id: "teknikal", label: "Analisa Teknikal" },
   { id: "berita", label: "Berita" },
   { id: "kalender", label: "Kalender Ekonomi" },
   { id: "pengaturan", label: "Pengaturan" },
@@ -448,6 +450,7 @@ export default function SahamModule({ isOwner }: { isOwner: boolean }) {
               </div>
             </section>
           )}
+          {tab === "teknikal" && <SahamTechnical code={chartCode} />}
           {tab === "berita" && <NewsPanel />}
           {tab === "kalender" && <EconomicCalendar />}
           {tab === "pengaturan" && <SettingsPanel isOwner={isOwner} />}

@@ -11,7 +11,8 @@ import {
   type UTCTimestamp,
 } from "lightweight-charts";
 import { emaSeries, type Candle } from "@/lib/indicators";
-import { STOCKS, type SahamChart as ChartData } from "@/lib/saham";
+import { STOCKS } from "@/lib/saham";
+import { useSahamChart } from "@/lib/use-saham-chart";
 
 const TFS = [
   { id: "1m", label: "1m" },
@@ -25,21 +26,6 @@ type Tf = (typeof TFS)[number]["id"];
 
 // Chart axes show Jakarta time whatever the viewer's own timezone is.
 const toTime = (ms: number) => (ms / 1000 + 7 * 3600) as UTCTimestamp;
-
-// IDX regular sessions in WIB: Mon–Thu 09:00–12:00 & 13:30–16:00, Fri 09:00–11:30 & 14:00–16:00.
-export function idxSession(now = new Date()): { text: string; open: boolean } {
-  const wib = new Date(now.getTime() + (now.getTimezoneOffset() + 420) * 60_000);
-  const day = wib.getDay();
-  const min = wib.getHours() * 60 + wib.getMinutes();
-  if (day === 0 || day === 6) return { text: "Bursa tutup (akhir pekan)", open: false };
-  const fri = day === 5;
-  const s1 = [540, fri ? 690 : 720];
-  const s2 = [fri ? 840 : 810, 960];
-  if (min >= s1[0] && min < s1[1]) return { text: "Sesi 1 berjalan", open: true };
-  if (min >= s2[0] && min < s2[1]) return { text: "Sesi 2 berjalan", open: true };
-  if (min >= s1[1] && min < s2[0]) return { text: "Istirahat siang", open: false };
-  return { text: "Bursa tutup", open: false };
-}
 
 type Refs = {
   chart: IChartApi;
@@ -75,10 +61,8 @@ function draw(r: Refs, candles: Candle[], fit: boolean) {
 
 export default function SahamChart({ code, onCode }: { code: string; onCode: (code: string) => void }) {
   const [tf, setTf] = useState<Tf>("5m");
-  const [data, setData] = useState<ChartData | null>(null);
-  const [error, setError] = useState<string | null>(null);
+  const { data, error, session, key } = useSahamChart(code, tf);
   const [input, setInput] = useState("");
-  const [session, setSession] = useState(() => idxSession());
   const el = useRef<HTMLDivElement>(null);
   const refs = useRef<Refs | null>(null);
   const fitted = useRef("");
@@ -122,45 +106,23 @@ export default function SahamChart({ code, onCode }: { code: string; onCode: (co
   }, []);
 
   useEffect(() => {
-    let cancelled = false;
-    let timer: ReturnType<typeof setTimeout>;
-    const key = `${code}:${tf}`;
-    const load = async () => {
-      const s = idxSession();
-      setSession(s);
-      try {
-        const res = await fetch(`/api/saham/chart?code=${code}&tf=${tf}`);
-        const j = await res.json();
-        if (!res.ok) throw new Error(j.error ?? `HTTP ${res.status}`);
-        if (cancelled) return;
-        setData(j);
-        setError(null);
-        if (refs.current && j.candles.length) {
-          // Stocks trade in whole rupiah; the index has two decimals.
-          const ihsg = code === "IHSG";
-          refs.current.candles.applyOptions({
-            priceFormat: { type: "price", precision: ihsg ? 2 : 0, minMove: ihsg ? 0.01 : 1 },
-          });
-          draw(refs.current, j.candles, fitted.current !== key);
-          fitted.current = key;
-        }
-      } catch (e) {
-        if (cancelled) return;
-        setError(e instanceof Error ? e.message : "Gagal memuat chart");
-        // Don't leave the previous symbol's candles on screen under the new name.
-        if (refs.current && fitted.current !== key) draw(refs.current, [], false);
-      }
-      // Refresh every 15 s while the exchange is trading, otherwise every 5 minutes.
-      if (!cancelled) timer = setTimeout(load, s.open ? 15_000 : 300_000);
-    };
-    load();
-    return () => {
-      cancelled = true;
-      clearTimeout(timer);
-    };
-  }, [code, tf]);
+    const r = refs.current;
+    if (!r) return;
+    if (!data?.candles.length) {
+      // Don't leave the previous symbol's candles on screen under the new name.
+      if (fitted.current !== key) draw(r, [], false);
+      return;
+    }
+    // Stocks trade in whole rupiah; the index has two decimals.
+    const ihsg = code === "IHSG";
+    r.candles.applyOptions({
+      priceFormat: { type: "price", precision: ihsg ? 2 : 0, minMove: ihsg ? 0.01 : 1 },
+    });
+    draw(r, data.candles, fitted.current !== key);
+    fitted.current = key;
+  }, [data, key, code]);
 
-  const current = data && data.symbol === (code === "IHSG" ? "^JKSE" : `${code}.JK`) ? data : null;
+  const current = data;
 
   return (
     <section className="panel overflow-hidden">

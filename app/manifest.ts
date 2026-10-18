@@ -2,8 +2,8 @@ import type { MetadataRoute } from "next";
 
 export default function manifest(): MetadataRoute.Manifest {
   return {
-    name: "KriptoScope — Analisa Crypto & Berita Dunia",
-    short_name: "KriptoScope",
+    name: "MarketScope — Analisa Kripto, Saham & Berita Dunia",
+    short_name: "MarketScope",
     description: "Analisa teknikal dan fundamental crypto dengan berita politik dan ekonomi dunia terbaru.",
     start_url: "/",
     display: "standalone",

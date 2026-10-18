@@ -48,7 +48,7 @@ export async function weeklyReport(
   now: number,
 ): Promise<{ text: string; equity: number | null }> {
   const since = now - WEEK_MS;
-  const lines: string[] = [`📊 <b>Laporan mingguan KriptoScope</b> (${day(since)} – ${day(now)})`];
+  const lines: string[] = [`📊 <b>Laporan mingguan MarketScope</b> (${day(since)} – ${day(now)})`];
 
   // Market.
   if (btcDaily && btcDaily.length > 8) {

@@ -12,10 +12,10 @@ async function reportFor(chatId: number): Promise<string> {
   const client = await clerkClient();
   const { data: users } = await client.users.getUserList({ limit: 200 });
   const user = users.find((u) => (u.privateMetadata.telegram as { chatId?: unknown } | undefined)?.chatId === chatId);
-  if (!user) return "Chat ini belum terhubung. Hubungkan dari menu Pengaturan di aplikasi KriptoScope.";
+  if (!user) return "Chat ini belum terhubung. Hubungkan dari menu Pengaturan di aplikasi MarketScope.";
   const email = user.primaryEmailAddress?.emailAddress ?? "";
   const allowed = isOwnerEmail(email) || (user.publicMetadata.approved === true && user.publicMetadata.rejected !== true);
-  if (!allowed) return "Akun Anda belum disetujui untuk memakai KriptoScope.";
+  if (!allowed) return "Akun Anda belum disetujui untuk memakai MarketScope.";
   const meta = user.privateMetadata;
   const state = readState(meta.tgState);
   const btc = await fetchCandles(MARKET_SYMBOL, MARKET_INTERVAL, 300).catch(() => null);
@@ -36,21 +36,21 @@ export async function POST(request: Request) {
   if (command === "/start" && code) {
     const userId = userFromCode(code);
     if (!userId) {
-      await sendMessage(chatId, "Kode tidak valid. Buka KriptoScope → Pengaturan → Telegram, lalu tekan tombol hubungkan lagi.");
+      await sendMessage(chatId, "Kode tidak valid. Buka MarketScope → Pengaturan → Telegram, lalu tekan tombol hubungkan lagi.");
       return Response.json({ ok: true });
     }
     const client = await clerkClient();
     await client.users.updateUserMetadata(userId, { privateMetadata: { telegram: { chatId }, tgState: null } });
     await sendMessage(
       chatId,
-      "✅ <b>KriptoScope terhubung.</b>\nAnda akan menerima pesan saat koin layak BELI, saat posisi waktunya JUAL atau AMANKAN, pengingat DCA, dan laporan mingguan setiap Senin pagi. Ketik /laporan untuk laporan sekarang. Putuskan kapan saja dari Pengaturan di aplikasi.",
+      "✅ <b>MarketScope terhubung.</b>\nAnda akan menerima pesan saat koin layak BELI, saat posisi waktunya JUAL atau AMANKAN, pengingat DCA, dan laporan mingguan setiap Senin pagi. Ketik /laporan untuk laporan sekarang. Putuskan kapan saja dari Pengaturan di aplikasi.",
     );
   } else if (command === "/laporan" || command?.startsWith("/laporan@")) {
     await sendMessage(chatId, await reportFor(chatId).catch(() => "Laporan gagal dibuat, coba lagi sebentar."));
   } else {
     await sendMessage(
       chatId,
-      "Ketik /laporan untuk ringkasan pasar, Akun Demo, dan catatan trading Anda. Selain itu bot ini mengirim pemberitahuan KriptoScope secara otomatis; hubungkan dari menu Pengaturan di aplikasi.",
+      "Ketik /laporan untuk ringkasan pasar, Akun Demo, dan catatan trading Anda. Selain itu bot ini mengirim pemberitahuan MarketScope secara otomatis; hubungkan dari menu Pengaturan di aplikasi.",
     );
   }
   return Response.json({ ok: true });

@@ -123,7 +123,7 @@ export default function Dashboard({ isOwner = false }: { isOwner?: boolean }) {
     <div className="flex w-full flex-col gap-2 p-2">
       <header className="panel flex flex-wrap items-center gap-x-4 gap-y-2 px-3 py-2">
         <h1 className="text-base font-bold tracking-tight">
-          <span className="brand">KriptoScope</span>
+          <span className="brand">MarketScope</span>
         </h1>
         <div
           className="flex overflow-hidden rounded border border-line"

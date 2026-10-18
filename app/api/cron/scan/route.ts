@@ -4,7 +4,7 @@ import { packAlerts, unpackAlerts } from "@/lib/price-alerts";
 import { alertsFor, candleCache } from "@/lib/alerts-server";
 import { sendMessage, telegramConfigured } from "@/lib/telegram";
 
-// Scheduled scan (GitHub Actions every 15 minutes) that sends Telegram alerts to linked users.
+// Scheduled scan (GitHub Actions every 5 minutes) that sends Telegram alerts to linked users.
 // Authorized with "Authorization: Bearer <CRON_SECRET>".
 
 async function usdtIdr(): Promise<number | null> {

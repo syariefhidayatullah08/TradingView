@@ -127,7 +127,7 @@ function parseRss(xml: string, { source, filter }: Feed): NewsItem[] {
 
 async function loadFeed(feed: Feed): Promise<NewsItem[]> {
   const res = await fetch(feed.url, {
-    headers: { "User-Agent": "Mozilla/5.0 (compatible; KriptoScope/1.0)" },
+    headers: { "User-Agent": "Mozilla/5.0 (compatible; MarketScope/1.0)" },
     signal: AbortSignal.timeout(10000),
     next: { revalidate: 120 },
   });

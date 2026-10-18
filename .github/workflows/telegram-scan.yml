@@ -1,10 +1,10 @@
 name: Telegram alerts
 
-# Runs the server scan that sends KriptoScope alerts to Telegram. Needs the repository
+# Runs the server scan that sends MarketScope alerts to Telegram. Needs the repository
 # secret CRON_SECRET to match the CRON_SECRET environment variable on Vercel.
 on:
   schedule:
-    - cron: "*/15 * * * *"
+    - cron: "*/5 * * * *"
   workflow_dispatch:
 
 jobs:

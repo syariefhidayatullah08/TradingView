@@ -3,7 +3,7 @@
 import { useState } from "react";
 import { ATR, INDICATORS, PIVOT, SUMMARY } from "@/lib/explanations";
 import Explain from "./Explain";
-import { analyze, summaryLabel, type Signal } from "@/lib/indicators";
+import { analyze, summaryLabel, type Candle, type Signal } from "@/lib/indicators";
 import { useLiveCandles } from "@/lib/live-candles";
 import { formatPrice, type Coin, type Timeframe } from "@/lib/symbols";
 
@@ -15,18 +15,45 @@ const toneClass: Record<Signal, string> = {
 const signalText: Record<Signal, string> = { 1: "Beli", 0: "Netral", [-1]: "Jual" };
 
 export default function AnalysisPanel({ coin, timeframe }: { coin: Coin; timeframe: Timeframe }) {
-  const [explain, setExplain] = useState(true);
   const live = useLiveCandles(coin.symbol, timeframe.binance);
-  const analysis = live.candles ? analyze(live.candles, formatPrice) : null;
+  return (
+    <IndicatorReport
+      candles={live.candles}
+      live={live.live}
+      error={Boolean(live.error)}
+      label={`${coin.base}/USDT · ${timeframe.label}`}
+      fmt={formatPrice}
+      currency="$"
+    />
+  );
+}
 
+// Indicator table, summary gauge and pivots for any candle series; shared by crypto and stocks.
+export function IndicatorReport({
+  candles,
+  live,
+  error,
+  label,
+  fmt,
+  currency,
+}: {
+  candles: Candle[] | null;
+  live: boolean;
+  error: boolean;
+  label: string;
+  fmt: (n: number) => string;
+  currency: string;
+}) {
+  const [explain, setExplain] = useState(true);
+  const analysis = candles ? analyze(candles, fmt) : null;
 
   return (
     <section className="panel flex flex-col">
       <header className="panel-header">
         <h2>Analisa Teknikal</h2>
         <span className="flex items-center gap-2 text-xs text-muted">
-          <span className={`h-2 w-2 rounded-full ${live.live ? "animate-pulse bg-up" : "bg-muted"}`} />
-          {coin.base}/USDT · {timeframe.label}
+          <span className={`h-2 w-2 rounded-full ${live ? "animate-pulse bg-up" : "bg-muted"}`} />
+          {label}
           <button
             onClick={() => setExplain((e) => !e)}
             className="rounded border border-line px-2 py-0.5 text-[11px] font-medium hover:bg-base"
@@ -36,9 +63,9 @@ export default function AnalysisPanel({ coin, timeframe }: { coin: Coin; timefra
         </span>
       </header>
 
-      {!live.candles && !live.error && <p className="p-4 text-sm text-muted">Memuat data pasar…</p>}
-      {live.error && <p className="p-4 text-sm text-down">Data pasar gagal dimuat, mencoba lagi…</p>}
-      {live.candles && !analysis && (
+      {!candles && !error && <p className="p-4 text-sm text-muted">Memuat data pasar…</p>}
+      {error && <p className="p-4 text-sm text-down">Data pasar gagal dimuat, mencoba lagi…</p>}
+      {candles && !analysis && (
         <p className="p-4 text-sm text-muted">Data historis belum cukup untuk dianalisa.</p>
       )}
 
@@ -46,7 +73,10 @@ export default function AnalysisPanel({ coin, timeframe }: { coin: Coin; timefra
         <div className="flex flex-col gap-4 p-4">
           <div className="flex items-end justify-between">
             <div>
-              <div className="font-mono text-2xl font-semibold">${formatPrice(analysis.price)}</div>
+              <div className="font-mono text-2xl font-semibold">
+                {currency}
+                {fmt(analysis.price)}
+              </div>
               <div className={`text-xs ${analysis.changePct >= 0 ? "text-up" : "text-down"}`}>
                 {analysis.changePct >= 0 ? "+" : ""}
                 {analysis.changePct.toFixed(2)}% vs candle sebelumnya
@@ -116,24 +146,25 @@ export default function AnalysisPanel({ coin, timeframe }: { coin: Coin; timefra
                 ).map(([label, value, cls]) => (
                   <div key={label} className="rounded bg-base px-1 py-1.5">
                     <div className={`font-sans font-semibold ${cls}`}>{label}</div>
-                    <div>{formatPrice(value)}</div>
+                    <div>{fmt(value)}</div>
                   </div>
                 ))}
               </div>
               {explain && <Explain info={PIVOT} className="mt-2 rounded bg-base p-2" />}
               {analysis.atr !== null && (
                 <p className="mt-3 text-xs text-muted">
-                  Volatilitas ATR(14): <span className="font-mono text-fg">{formatPrice(analysis.atr)}</span>{" "}
-                  ({((analysis.atr / analysis.price) * 100).toFixed(2)}% dari harga)
+                  Volatilitas ATR(14): <span className="font-mono text-fg">{fmt(analysis.atr)}</span> (
+                  {((analysis.atr / analysis.price) * 100).toFixed(2)}% dari harga)
                 </p>
               )}
-              {explain && analysis.atr !== null && <Explain info={ATR} className="mt-2 rounded bg-base p-2" />}
+              {explain && analysis.atr !== null && (
+                <Explain info={ATR} className="mt-2 rounded bg-base p-2" />
+              )}
             </div>
           )}
 
           <p className="text-[11px] leading-snug text-muted">
-            Sinyal dihitung otomatis dari indikator dan bukan saran keuangan. Selalu gunakan manajemen
-            risiko.
+            Sinyal dihitung otomatis dari indikator dan bukan saran keuangan. Selalu gunakan manajemen risiko.
           </p>
         </div>
       )}

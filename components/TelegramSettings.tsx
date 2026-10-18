@@ -4,7 +4,7 @@ import { useEffect, useState } from "react";
 
 type Status = { configured: boolean; linked: boolean; url: string | null; isOwner?: boolean };
 
-// Connect this account to the KriptoScope Telegram bot for alerts while the app is closed.
+// Connect this account to the MarketScope Telegram bot for alerts while the app is closed.
 export default function TelegramSettings() {
   const [status, setStatus] = useState<Status | null>(null);
   const [message, setMessage] = useState<string | null>(null);

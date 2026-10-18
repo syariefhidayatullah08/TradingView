@@ -11,7 +11,13 @@ import { formatPrice, type Coin } from "@/lib/symbols";
 const HORIZONS = [
   { id: "harian", label: "Harian", interval: "1h", horizon: 24, basis: "Candle 1 jam · proyeksi 24 jam" },
   { id: "mingguan", label: "Mingguan", interval: "1d", horizon: 7, basis: "Candle harian · proyeksi 7 hari" },
-  { id: "bulanan", label: "Bulanan", interval: "1w", horizon: 4, basis: "Candle mingguan · proyeksi 4 minggu" },
+  {
+    id: "bulanan",
+    label: "Bulanan",
+    interval: "1w",
+    horizon: 4,
+    basis: "Candle mingguan · proyeksi 4 minggu",
+  },
 ] as const;
 
 type Result = { outlook: Outlook | null } | { error: true };
@@ -20,12 +26,26 @@ const toneClass: Record<Signal, string> = { 1: "text-up", 0: "text-muted", [-1]:
 const toneBg: Record<Signal, string> = { 1: "bg-up", 0: "bg-muted", [-1]: "bg-down" };
 const arrow: Record<Signal, string> = { 1: "▲", 0: "◆", [-1]: "▼" };
 
+const usd = (n: number) => `${formatPrice(n)}`;
+
 function strengthText(strength: number, tone: Signal): string {
   if (tone === 0) return "Arah belum jelas";
   return strength >= 70 ? "Sinyal kuat" : strength >= 45 ? "Sinyal sedang" : "Sinyal lemah";
 }
 
-function Card({ label, basis, result }: { label: string; basis: string; result: Result | undefined }) {
+export type DirectionResult = Result;
+
+export function DirectionCard({
+  label,
+  basis,
+  result,
+  money,
+}: {
+  label: string;
+  basis: string;
+  result: Result | undefined;
+  money: (n: number) => string;
+}) {
   const o = result && "outlook" in result ? result.outlook : null;
   return (
     <div className="flex flex-col gap-3 rounded bg-base p-3">
@@ -63,17 +83,17 @@ function Card({ label, basis, result }: { label: string; basis: string; result: 
           <dl className="grid grid-cols-2 gap-x-3 gap-y-2 text-xs">
             <div>
               <dt className="text-[11px] text-muted">Support terdekat</dt>
-              <dd className="font-mono text-up">${formatPrice(o.support)}</dd>
+              <dd className="font-mono text-up">{money(o.support)}</dd>
             </div>
             <div>
               <dt className="text-[11px] text-muted">Resistance terdekat</dt>
-              <dd className="font-mono text-down">${formatPrice(o.resistance)}</dd>
+              <dd className="font-mono text-down">{money(o.resistance)}</dd>
             </div>
             {o.rangeLow !== null && o.rangeHigh !== null && (
               <div className="col-span-2">
                 <dt className="text-[11px] text-muted">Perkiraan rentang gerak (dari volatilitas)</dt>
                 <dd className="font-mono">
-                  ${formatPrice(Math.max(o.rangeLow, 0))} – ${formatPrice(o.rangeHigh)}
+                  {money(Math.max(o.rangeLow, 0))} – {money(o.rangeHigh)}
                 </dd>
               </div>
             )}
@@ -98,9 +118,12 @@ export default function MarketDirection({ coin }: { coin: Coin }) {
   const daily = useLiveCandles(coin.symbol, HORIZONS[1].interval);
   const weekly = useLiveCandles(coin.symbol, HORIZONS[2].interval);
   const results = [hourly, daily, weekly].map((live, i): Result | undefined =>
-    live.candles ? { outlook: outlook(live.candles, HORIZONS[i].horizon) } : live.error ? { error: true } : undefined,
+    live.candles
+      ? { outlook: outlook(live.candles, HORIZONS[i].horizon) }
+      : live.error
+        ? { error: true }
+        : undefined,
   );
-
 
   return (
     <section className="panel">
@@ -110,7 +133,7 @@ export default function MarketDirection({ coin }: { coin: Coin }) {
       </header>
       <div className="grid gap-2 p-3 md:grid-cols-3">
         {HORIZONS.map((h, i) => (
-          <Card key={h.id} label={h.label} basis={h.basis} result={results[i]} />
+          <DirectionCard key={h.id} label={h.label} basis={h.basis} result={results[i]} money={usd} />
         ))}
       </div>
       <div className="px-3 pb-3">

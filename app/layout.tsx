@@ -18,9 +18,9 @@ const geistMono = Geist_Mono({
 });
 
 export const metadata: Metadata = {
-  title: "KriptoScope — Analisa Crypto & Berita Dunia",
+  title: "MarketScope — Analisa Kripto, Saham & Berita Dunia",
   description: "Dashboard analisa teknikal crypto dengan berita politik dan ekonomi dunia terbaru.",
-  appleWebApp: { capable: true, title: "KriptoScope", statusBarStyle: "black-translucent" },
+  appleWebApp: { capable: true, title: "MarketScope", statusBarStyle: "black-translucent" },
 };
 
 export const viewport: Viewport = {
