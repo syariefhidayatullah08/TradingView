@@ -1,6 +1,6 @@
 "use client";
 
-import { Fragment, useEffect, useMemo, useState } from "react";
+import { Fragment, useEffect, useMemo, useRef, useState } from "react";
 import type { Signal } from "@/lib/indicators";
 import {
   BUY_FEE,
@@ -15,7 +15,7 @@ import {
   type SahamReport,
   type StockScore,
 } from "@/lib/saham";
-import TVWidget from "./TVWidget";
+import SahamChart from "./SahamChart";
 
 const toneClass: Record<Signal, string> = { 1: "text-up", 0: "text-muted", [-1]: "text-down" };
 const badge: Record<Signal, string> = {
@@ -63,7 +63,7 @@ function Points({ title, points }: { title: string; points: Point[] }) {
   );
 }
 
-function Detail({ s }: { s: StockScore }) {
+function Detail({ s, onChart }: { s: StockScore; onChart: () => void }) {
   return (
     <div className="grid gap-4 border-t border-line p-4 lg:grid-cols-[minmax(0,1fr)_minmax(0,1fr)]">
       <div className="flex flex-col gap-3">
@@ -89,24 +89,12 @@ function Detail({ s }: { s: StockScore }) {
         <Points title="Teknikal jangka menengah" points={s.techPoints.menengah} />
         <Points title="Teknikal jangka panjang" points={s.techPoints.panjang} />
       </div>
-      <div className="lg:col-span-2" style={{ height: 380 }}>
-        <TVWidget
-          script="advanced-chart"
-          height="100%"
-          config={{
-            autosize: true,
-            symbol: `IDX:${s.code}`,
-            interval: "D",
-            timezone: "Asia/Jakarta",
-            theme: "dark",
-            style: "1",
-            locale: "id",
-            allow_symbol_change: false,
-            studies: ["STD;RSI", "STD;MACD"],
-            support_host: "https://www.tradingview.com",
-          }}
-        />
-      </div>
+      <button
+        onClick={onChart}
+        className="justify-self-start rounded border border-line px-2.5 py-1 text-xs hover:bg-base lg:col-span-2"
+      >
+        📈 Lihat chart {s.code}
+      </button>
     </div>
   );
 }
@@ -118,6 +106,12 @@ export default function SahamPanel() {
   const [loaded, setLoaded] = useState(false);
   const [horizon, setHorizon] = useState<Horizon>("panjang");
   const [open, setOpen] = useState<string | null>(null);
+  const [chartCode, setChartCode] = useState("IHSG");
+  const chartRef = useRef<HTMLDivElement>(null);
+  const showChart = (code: string) => {
+    setChartCode(code);
+    chartRef.current?.scrollIntoView({ behavior: "smooth", block: "start" });
+  };
 
   useEffect(() => {
     let cancelled = false;
@@ -159,6 +153,9 @@ export default function SahamPanel() {
 
   return (
     <div className="flex flex-col gap-2">
+      <div ref={chartRef} className="scroll-mt-2">
+        <SahamChart code={chartCode} onCode={setChartCode} />
+      </div>
       <section className="panel">
         <header className="panel-header">
           <h2>Saham Indonesia — Rencana Modal</h2>
@@ -257,7 +254,7 @@ export default function SahamPanel() {
                   <tr key={p.stock.code} className="border-t border-line">
                     <td className="py-1.5 pr-2 text-xs">{HORIZONS.find((h) => h.id === p.horizon)?.label}</td>
                     <td className="py-1.5 pr-2">
-                      <button onClick={() => setOpen(p.stock.code)} className="font-semibold hover:underline">
+                      <button onClick={() => showChart(p.stock.code)} className="font-semibold hover:underline">
                         {p.stock.code}
                       </button>{" "}
                       <span className="text-[11px] text-muted">{p.stock.sector}</span>
@@ -384,7 +381,7 @@ export default function SahamPanel() {
                       {open === s.code && (
                         <tr>
                           <td colSpan={7} className="p-0">
-                            <Detail s={s} />
+                            <Detail s={s} onChart={() => showChart(s.code)} />
                           </td>
                         </tr>
                       )}

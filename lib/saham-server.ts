@@ -5,6 +5,7 @@ import {
   type Horizon,
   type MarketContext,
   type Point,
+  type SahamChart,
   type SahamReport,
   type StockScore,
 } from "./saham";
@@ -375,4 +376,58 @@ export async function getSahamReport(): Promise<SahamReport> {
       pending = null;
     });
   return pending;
+}
+
+// Yahoo interval and history range for each chart timeframe on the stock tab.
+const CHART_TF: Record<string, { interval: string; range: string }> = {
+  "1m": { interval: "1m", range: "1d" },
+  "5m": { interval: "5m", range: "5d" },
+  "15m": { interval: "15m", range: "1mo" },
+  "1h": { interval: "60m", range: "3mo" },
+  "1d": { interval: "1d", range: "2y" },
+  "1wk": { interval: "1wk", range: "10y" },
+};
+
+export const isChartTimeframe = (tf: string) => tf in CHART_TF;
+
+const chartCache = new Map<string, { at: number; data: SahamChart }>();
+
+// Candles (times in ms) plus the latest quote, cached briefly so many viewers share one request.
+export async function getSahamChart(symbol: string, tf: string): Promise<SahamChart> {
+  const key = `${symbol}:${tf}`;
+  const hit = chartCache.get(key);
+  if (hit && Date.now() - hit.at < 20_000) return hit.data;
+  const { interval, range } = CHART_TF[tf];
+  const res = await fetch(
+    `https://query1.finance.yahoo.com/v8/finance/chart/${encodeURIComponent(symbol)}?interval=${interval}&range=${range}`,
+    { headers: UA },
+  );
+  if (!res.ok) throw new Error(res.status === 404 ? "Kode saham tidak ditemukan" : `HTTP ${res.status}`);
+  const r = (await res.json()).chart?.result?.[0];
+  if (!r?.meta) throw new Error("Kode saham tidak ditemukan");
+  const q = r.indicators?.quote?.[0] ?? {};
+  const candles: Candle[] = [];
+  (r.timestamp ?? []).forEach((t: number, i: number) => {
+    const [o, h, l, c, v] = [q.open?.[i], q.high?.[i], q.low?.[i], q.close?.[i], q.volume?.[i]];
+    if ([o, h, l, c].every((x) => typeof x === "number" && x > 0)) {
+      candles.push({ time: t * 1000, open: o, high: h, low: l, close: c, volume: v ?? 0 });
+    }
+  });
+  const m = r.meta;
+  const price = raw(m.regularMarketPrice) ?? candles[candles.length - 1]?.close ?? 0;
+  const prev = raw(m.previousClose) ?? raw(m.regularMarketPreviousClose) ?? raw(m.chartPreviousClose);
+  const changePct = raw(m.regularMarketChangePercent) ?? (prev ? pct(price, prev) : 0);
+  const data: SahamChart = {
+    symbol,
+    name: m.longName ?? m.shortName ?? symbol,
+    price,
+    changePct,
+    dayHigh: raw(m.regularMarketDayHigh),
+    dayLow: raw(m.regularMarketDayLow),
+    volume: raw(m.regularMarketVolume),
+    marketTime: (raw(m.regularMarketTime) ?? 0) * 1000,
+    candles,
+  };
+  chartCache.set(key, { at: Date.now(), data });
+  return data;
 }

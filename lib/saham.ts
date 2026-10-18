@@ -1,4 +1,4 @@
-import type { Signal } from "./indicators";
+import type { Candle, Signal } from "./indicators";
 
 // Liquid IDX stocks (mostly LQ45 / IDX30 members) that a small account can trade daily.
 export const STOCKS = [
@@ -82,6 +82,18 @@ export type MarketContext = {
   // "turun" = IHSG below its 200-day EMA or in a sharp sell-off; buy in stages only.
   regime: "naik" | "netral" | "turun";
   note: string;
+};
+
+export type SahamChart = {
+  symbol: string;
+  name: string;
+  price: number;
+  changePct: number;
+  dayHigh: number | null;
+  dayLow: number | null;
+  volume: number | null;
+  marketTime: number;
+  candles: Candle[];
 };
 
 export type SahamReport = { updatedAt: number; market: MarketContext | null; stocks: StockScore[] };
