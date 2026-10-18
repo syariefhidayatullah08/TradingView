@@ -9,6 +9,7 @@ import BuySellPanel from "./BuySellPanel";
 import CoinSentiment from "./CoinSentiment";
 import DcaPanel from "./DcaPanel";
 import DemoPanel from "./DemoPanel";
+import EconomicCalendar from "./EconomicCalendar";
 import FundamentalPanel from "./FundamentalPanel";
 import MarketDirection from "./MarketDirection";
 import MarketTable from "./MarketTable";
@@ -16,7 +17,7 @@ import NewsPanel from "./NewsPanel";
 import PositionsPanel from "./PositionsPanel";
 import PriceAlerts from "./PriceAlerts";
 import RealtimeCharts from "./RealtimeCharts";
-import SahamPanel from "./SahamPanel";
+import SahamModule from "./SahamModule";
 import { SantaiToggle } from "./SantaiSettings";
 import ScannerPanel from "./ScannerPanel";
 import SettingsPanel from "./SettingsPanel";
@@ -49,16 +50,6 @@ const TICKER_CONFIG = {
   locale: "id",
 };
 
-const CALENDAR_CONFIG = {
-  colorTheme: "dark",
-  isTransparent: true,
-  width: "100%",
-  height: "100%",
-  locale: "id",
-  importanceFilter: "0,1",
-  countryFilter: "us,eu,cn,jp,gb,id",
-};
-
 const TABS = [
   { id: "ai", label: "Analisa AI" },
   { id: "pemindai", label: "Pemindai Trading" },
@@ -70,7 +61,6 @@ const TABS = [
   { id: "sinyal", label: "Sinyal Beli/Jual" },
   { id: "posisi", label: "Posisi Saya" },
   { id: "fundamental", label: "Analisa Fundamental" },
-  { id: "saham", label: "Saham Indonesia" },
   { id: "berita", label: "Berita Dunia" },
   { id: "kalender", label: "Kalender Ekonomi" },
   { id: "pengaturan", label: "Pengaturan" },
@@ -78,11 +68,20 @@ const TABS = [
 
 type TabId = (typeof TABS)[number]["id"];
 
+const MODULES = [
+  { id: "kripto", label: "₿ Kripto" },
+  { id: "saham", label: "📈 Saham Indonesia" },
+] as const;
+type ModuleId = (typeof MODULES)[number]["id"];
+const MODULE_KEY = "modul-aktif";
+
 export default function Dashboard({ isOwner = false }: { isOwner?: boolean }) {
   const [coin, setCoin] = useState<Coin>(COINS[0]);
   const [timeframe, setTimeframe] = useState<Timeframe>(TIMEFRAMES[1]);
   const [tab, setTab] = useState<TabId>("ai");
   const [fullscreen, setFullscreen] = useState(false);
+  const [module, setModule] = useState<ModuleId>("kripto");
+  const kripto = module === "kripto";
   const alertsOn = useAlertsEnabled();
   const santai = useSantai();
   const chartBg = themeInfo(useTheme()).chartBg;
@@ -97,6 +96,19 @@ export default function Dashboard({ isOwner = false }: { isOwner?: boolean }) {
   }
   // Scan every coin only while someone looks at the scanner or alerts need it.
   const scan = useScan(timeframe, tab === "pemindai" || alertsOn);
+
+  // Reopen the module the viewer last used.
+  useEffect(() => {
+    try {
+      if (localStorage.getItem(MODULE_KEY) === "saham") setModule("saham"); // eslint-disable-line react-hooks/set-state-in-effect
+    } catch {}
+  }, []);
+  const chooseModule = (id: ModuleId) => {
+    setModule(id);
+    try {
+      localStorage.setItem(MODULE_KEY, id);
+    } catch {}
+  };
 
   useEffect(() => {
     if (!fullscreen) return;
@@ -113,187 +125,212 @@ export default function Dashboard({ isOwner = false }: { isOwner?: boolean }) {
         <h1 className="text-base font-bold tracking-tight">
           <span className="brand">KriptoScope</span>
         </h1>
-        <select
-          value={coin.symbol}
-          onChange={(e) => setCoin(COINS.find((c) => c.symbol === e.target.value) ?? COINS[0])}
-          className="rounded border border-line bg-base px-2 py-1.5 text-sm font-semibold"
-          aria-label="Pilih koin"
+        <div
+          className="flex overflow-hidden rounded border border-line"
+          role="tablist"
+          aria-label="Pilih modul"
         >
-          {COINS.map((c) => (
-            <option key={c.symbol} value={c.symbol}>
-              {c.base}USDT — {c.name}
-            </option>
-          ))}
-        </select>
-        <div className="flex overflow-hidden rounded border border-line">
-          {TIMEFRAMES.map((tf) => (
+          {MODULES.map((m) => (
             <button
-              key={tf.tv}
-              onClick={() => setTimeframe(tf)}
-              className={`px-2.5 py-1.5 text-xs font-medium ${
-                tf.tv === timeframe.tv ? "btn-active text-white" : "bg-base text-muted hover:text-fg"
+              key={m.id}
+              role="tab"
+              aria-selected={m.id === module}
+              onClick={() => chooseModule(m.id)}
+              className={`px-3 py-1.5 text-sm font-semibold ${
+                m.id === module ? "btn-active text-white" : "bg-base text-muted hover:text-fg"
               }`}
             >
-              {tf.label}
+              {m.label}
             </button>
           ))}
         </div>
-        <div className="min-w-0 flex-1 basis-80 overflow-hidden">
-          <TVWidget script="ticker-tape" config={TICKER_CONFIG} height={46} />
-        </div>
+        {kripto && (
+          <>
+            <select
+              value={coin.symbol}
+              onChange={(e) => setCoin(COINS.find((c) => c.symbol === e.target.value) ?? COINS[0])}
+              className="rounded border border-line bg-base px-2 py-1.5 text-sm font-semibold"
+              aria-label="Pilih koin"
+            >
+              {COINS.map((c) => (
+                <option key={c.symbol} value={c.symbol}>
+                  {c.base}USDT — {c.name}
+                </option>
+              ))}
+            </select>
+            <div className="flex overflow-hidden rounded border border-line">
+              {TIMEFRAMES.map((tf) => (
+                <button
+                  key={tf.tv}
+                  onClick={() => setTimeframe(tf)}
+                  className={`px-2.5 py-1.5 text-xs font-medium ${
+                    tf.tv === timeframe.tv ? "btn-active text-white" : "bg-base text-muted hover:text-fg"
+                  }`}
+                >
+                  {tf.label}
+                </button>
+              ))}
+            </div>
+            <div className="min-w-0 flex-1 basis-80 overflow-hidden">
+              <TVWidget script="ticker-tape" config={TICKER_CONFIG} height={46} />
+            </div>
+          </>
+        )}
+        {!kripto && <div className="flex-1" />}
         <ThemeSwitcher />
-        <SantaiToggle onEnable={() => setTimeframe(TIMEFRAMES[SANTAI_TIMEFRAME])} />
-        <TradeAlerts rows={scan} timeframe={timeframe} />
-        <button
-          onClick={() => setTab("pengaturan")}
-          className="rounded border border-line px-2.5 py-1.5 text-xs font-medium hover:bg-base"
-        >
-          {isOwner ? "Kelola akses" : "Pengaturan"}
-        </button>
+        {kripto && <SantaiToggle onEnable={() => setTimeframe(TIMEFRAMES[SANTAI_TIMEFRAME])} />}
+        {/* Stays mounted in the stock module so crypto alerts keep running in the background. */}
+        <span className={kripto ? "contents" : "hidden"}>
+          <TradeAlerts rows={scan} timeframe={timeframe} />
+        </span>
+        {kripto && (
+          <button
+            onClick={() => setTab("pengaturan")}
+            className="rounded border border-line px-2.5 py-1.5 text-xs font-medium hover:bg-base"
+          >
+            {isOwner ? "Kelola akses" : "Pengaturan"}
+          </button>
+        )}
         <UserButton />
       </header>
 
-      <section
-        className={
-          fullscreen ? "fixed inset-0 z-50 flex flex-col bg-panel" : "panel flex flex-col overflow-hidden"
-        }
-        style={fullscreen ? undefined : { height: "max(680px, calc(100vh - 16px))" }}
-      >
-        <div className="flex items-center justify-between gap-2 border-b border-line px-3 py-1.5">
-          <span className="text-sm font-semibold">
-            {coin.base}/USDT <span className="font-normal text-muted">· {coin.name}</span>
-          </span>
-          <div className="flex items-center gap-2">
-            <StartTrading coin={coin} timeframe={timeframe} />
-            <button
-              onClick={() => setFullscreen((f) => !f)}
-              className="rounded border border-line px-2.5 py-1 text-xs font-medium hover:bg-base"
-            >
-              {fullscreen ? "✕ Tutup layar penuh (Esc)" : "⛶ Layar penuh"}
-            </button>
-          </div>
-        </div>
-        <div className="min-h-0 flex-1">
-          <TVWidget
-            script="advanced-chart"
-            height="100%"
-            config={{
-              autosize: true,
-              symbol: `BINANCE:${coin.symbol}`,
-              interval: timeframe.tv,
-              timezone: "Asia/Jakarta",
-              theme: "dark",
-              style: "1",
-              locale: "id",
-              allow_symbol_change: false,
-              hide_side_toolbar: false,
-              studies: ["STD;RSI", "STD;MACD"],
-              backgroundColor: chartBg,
-              gridColor: "rgba(147,197,253,0.08)",
-              support_host: "https://www.tradingview.com",
-            }}
-          />
-        </div>
-      </section>
-
-      <div className="grid gap-2 lg:grid-cols-[minmax(0,1fr)_340px]">
-        <main className="flex min-w-0 flex-col gap-2">
-          <nav className="panel flex flex-wrap gap-1 p-1">
-            {TABS.map((t) => (
-              <button
-                key={t.id}
-                onClick={() => setTab(t.id)}
-                className={`rounded px-3 py-1.5 text-sm font-medium ${
-                  tab === t.id ? "btn-active text-white" : "text-muted hover:bg-base hover:text-fg"
-                }`}
-              >
-                {t.label}
-              </button>
-            ))}
-          </nav>
-
-          {tab === "ai" && <AiAnalysisPanel coin={coin} />}
-          {tab === "saham" && <SahamPanel />}
-          {tab === "demo" && <DemoPanel coin={coin} onSelect={setCoin} />}
-          {tab === "dca" && (
-            <>
-              <DcaPanel />
-              <PriceAlerts coin={coin} />
-            </>
-          )}
-          {tab === "uji" && <BacktestPanel coin={coin} timeframe={timeframe} />}
-          {tab === "pemindai" && (
-            <ScannerPanel rows={scan} timeframe={timeframe} selected={coin.symbol} onSelect={setCoin} />
-          )}
-          {tab === "realtime" && (
-            <RealtimeCharts timeframe={timeframe} selected={coin.symbol} onSelect={setCoin} />
-          )}
-          {tab === "teknikal" && <MarketDirection coin={coin} />}
-          {tab === "sinyal" && (
-            <>
-              <SignalsOverview timeframe={timeframe} selected={coin.symbol} onSelect={setCoin} />
-              <BuySellPanel coin={coin} timeframe={timeframe} />
-            </>
-          )}
-          {tab === "teknikal" && (
-            <div className="grid gap-2 md:grid-cols-2">
-              <AnalysisPanel coin={coin} timeframe={timeframe} />
-              <section className="panel overflow-hidden">
-                <header className="panel-header">
-                  <h2>Rating Teknikal TradingView</h2>
-                  <span className="text-xs text-muted">Pembanding</span>
-                </header>
-                <TVWidget
-                  script="technical-analysis"
-                  height={460}
-                  config={{
-                    interval: timeframe.gauge,
-                    width: "100%",
-                    height: "100%",
-                    isTransparent: true,
-                    symbol: `BINANCE:${coin.symbol}`,
-                    showIntervalTabs: true,
-                    displayMode: "single",
-                    locale: "id",
-                    colorTheme: "dark",
-                  }}
-                />
-              </section>
+      {!kripto && <SahamModule isOwner={isOwner} />}
+      {kripto && (
+        <>
+          <section
+            className={
+              fullscreen ? "fixed inset-0 z-50 flex flex-col bg-panel" : "panel flex flex-col overflow-hidden"
+            }
+            style={fullscreen ? undefined : { height: "max(680px, calc(100vh - 16px))" }}
+          >
+            <div className="flex items-center justify-between gap-2 border-b border-line px-3 py-1.5">
+              <span className="text-sm font-semibold">
+                {coin.base}/USDT <span className="font-normal text-muted">· {coin.name}</span>
+              </span>
+              <div className="flex items-center gap-2">
+                <StartTrading coin={coin} timeframe={timeframe} />
+                <button
+                  onClick={() => setFullscreen((f) => !f)}
+                  className="rounded border border-line px-2.5 py-1 text-xs font-medium hover:bg-base"
+                >
+                  {fullscreen ? "✕ Tutup layar penuh (Esc)" : "⛶ Layar penuh"}
+                </button>
+              </div>
             </div>
-          )}
-          {tab === "posisi" && (
-            <>
-              <PositionsPanel coin={coin} timeframe={timeframe} />
-              <PriceAlerts coin={coin} />
-            </>
-          )}
-          {tab === "fundamental" && <FundamentalPanel coin={coin} />}
-          {tab === "pengaturan" && <SettingsPanel isOwner={isOwner} />}
-          {tab === "berita" && <NewsPanel />}
-          {tab === "kalender" && (
-            <section className="panel overflow-hidden">
-              <header className="panel-header">
-                <h2>Kalender Ekonomi</h2>
-                <span className="text-xs text-muted">Rilis data penting</span>
-              </header>
-              <TVWidget script="events" config={CALENDAR_CONFIG} height={560} />
-            </section>
-          )}
-        </main>
+            <div className="min-h-0 flex-1">
+              <TVWidget
+                script="advanced-chart"
+                height="100%"
+                config={{
+                  autosize: true,
+                  symbol: `BINANCE:${coin.symbol}`,
+                  interval: timeframe.tv,
+                  timezone: "Asia/Jakarta",
+                  theme: "dark",
+                  style: "1",
+                  locale: "id",
+                  allow_symbol_change: false,
+                  hide_side_toolbar: false,
+                  studies: ["STD;RSI", "STD;MACD"],
+                  backgroundColor: chartBg,
+                  gridColor: "rgba(147,197,253,0.08)",
+                  support_host: "https://www.tradingview.com",
+                }}
+              />
+            </div>
+          </section>
 
-        <aside className="flex flex-col gap-2">
-          <CoinSentiment coin={coin} timeframe={timeframe} />
-          <TokocryptoCard coin={coin} />
-          <MarketTable selected={coin.symbol} timeframe={timeframe} onSelect={setCoin} />
-        </aside>
-      </div>
+          <div className="grid gap-2 lg:grid-cols-[minmax(0,1fr)_340px]">
+            <main className="flex min-w-0 flex-col gap-2">
+              <nav className="panel flex flex-wrap gap-1 p-1">
+                {TABS.map((t) => (
+                  <button
+                    key={t.id}
+                    onClick={() => setTab(t.id)}
+                    className={`rounded px-3 py-1.5 text-sm font-medium ${
+                      tab === t.id ? "btn-active text-white" : "text-muted hover:bg-base hover:text-fg"
+                    }`}
+                  >
+                    {t.label}
+                  </button>
+                ))}
+              </nav>
 
-      <footer className="px-1 pb-2 text-[11px] text-muted">
-        Data harga: Binance &amp; Tokocrypto · Fundamental: CoinGecko · Chart &amp; kalender: TradingView ·
-        Berita: CNBC, MarketWatch, Investing.com, The Guardian, Bloomberg, The Fed, BBC, Financial Times, Al
-        Jazeera, Antara, CNBC Indonesia, CoinDesk, Cointelegraph, Decrypt, The Block, Cryptonews. Bukan saran
-        keuangan.
-      </footer>
+              {tab === "ai" && <AiAnalysisPanel coin={coin} />}
+              {tab === "demo" && <DemoPanel coin={coin} onSelect={setCoin} />}
+              {tab === "dca" && (
+                <>
+                  <DcaPanel />
+                  <PriceAlerts coin={coin} />
+                </>
+              )}
+              {tab === "uji" && <BacktestPanel coin={coin} timeframe={timeframe} />}
+              {tab === "pemindai" && (
+                <ScannerPanel rows={scan} timeframe={timeframe} selected={coin.symbol} onSelect={setCoin} />
+              )}
+              {tab === "realtime" && (
+                <RealtimeCharts timeframe={timeframe} selected={coin.symbol} onSelect={setCoin} />
+              )}
+              {tab === "teknikal" && <MarketDirection coin={coin} />}
+              {tab === "sinyal" && (
+                <>
+                  <SignalsOverview timeframe={timeframe} selected={coin.symbol} onSelect={setCoin} />
+                  <BuySellPanel coin={coin} timeframe={timeframe} />
+                </>
+              )}
+              {tab === "teknikal" && (
+                <div className="grid gap-2 md:grid-cols-2">
+                  <AnalysisPanel coin={coin} timeframe={timeframe} />
+                  <section className="panel overflow-hidden">
+                    <header className="panel-header">
+                      <h2>Rating Teknikal TradingView</h2>
+                      <span className="text-xs text-muted">Pembanding</span>
+                    </header>
+                    <TVWidget
+                      script="technical-analysis"
+                      height={460}
+                      config={{
+                        interval: timeframe.gauge,
+                        width: "100%",
+                        height: "100%",
+                        isTransparent: true,
+                        symbol: `BINANCE:${coin.symbol}`,
+                        showIntervalTabs: true,
+                        displayMode: "single",
+                        locale: "id",
+                        colorTheme: "dark",
+                      }}
+                    />
+                  </section>
+                </div>
+              )}
+              {tab === "posisi" && (
+                <>
+                  <PositionsPanel coin={coin} timeframe={timeframe} />
+                  <PriceAlerts coin={coin} />
+                </>
+              )}
+              {tab === "fundamental" && <FundamentalPanel coin={coin} />}
+              {tab === "pengaturan" && <SettingsPanel isOwner={isOwner} />}
+              {tab === "berita" && <NewsPanel />}
+              {tab === "kalender" && <EconomicCalendar />}
+            </main>
+
+            <aside className="flex flex-col gap-2">
+              <CoinSentiment coin={coin} timeframe={timeframe} />
+              <TokocryptoCard coin={coin} />
+              <MarketTable selected={coin.symbol} timeframe={timeframe} onSelect={setCoin} />
+            </aside>
+          </div>
+
+          <footer className="px-1 pb-2 text-[11px] text-muted">
+            Data harga: Binance &amp; Tokocrypto · Fundamental: CoinGecko · Chart &amp; kalender: TradingView
+            · Berita: CNBC, MarketWatch, Investing.com, The Guardian, Bloomberg, The Fed, BBC, Financial
+            Times, Al Jazeera, Antara, CNBC Indonesia, CoinDesk, Cointelegraph, Decrypt, The Block,
+            Cryptonews. Bukan saran keuangan.
+          </footer>
+        </>
+      )}
     </div>
   );
 }

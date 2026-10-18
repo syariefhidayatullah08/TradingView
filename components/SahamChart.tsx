@@ -89,7 +89,10 @@ export default function SahamChart({ code, onCode }: { code: string; onCode: (co
     const chart = createChart(node, {
       autoSize: true,
       layout: { background: { color: "transparent" }, textColor: "#8ea0c9", fontSize: 11 },
-      grid: { vertLines: { color: "rgba(147,197,253,0.08)" }, horzLines: { color: "rgba(147,197,253,0.08)" } },
+      grid: {
+        vertLines: { color: "rgba(147,197,253,0.08)" },
+        horzLines: { color: "rgba(147,197,253,0.08)" },
+      },
       rightPriceScale: { borderColor: "rgba(147,197,253,0.22)", scaleMargins: { top: 0.08, bottom: 0.22 } },
       timeScale: { borderColor: "rgba(147,197,253,0.22)", timeVisible: true, secondsVisible: false },
     });
@@ -103,7 +106,12 @@ export default function SahamChart({ code, onCode }: { code: string; onCode: (co
     });
     const volume = chart.addSeries(HistogramSeries, { priceScaleId: "vol", priceFormat: { type: "volume" } });
     chart.priceScale("vol").applyOptions({ scaleMargins: { top: 0.82, bottom: 0 } });
-    const line = { lineWidth: 1, priceLineVisible: false, lastValueVisible: false, crosshairMarkerVisible: false } as const;
+    const line = {
+      lineWidth: 1,
+      priceLineVisible: false,
+      lastValueVisible: false,
+      crosshairMarkerVisible: false,
+    } as const;
     const ema20 = chart.addSeries(LineSeries, { ...line, color: "#fbbf24" });
     const ema50 = chart.addSeries(LineSeries, { ...line, color: "#a5b4fc" });
     refs.current = { chart, candles, volume, ema20, ema50 };
@@ -220,11 +228,13 @@ export default function SahamChart({ code, onCode }: { code: string; onCode: (co
             </span>
             {current.dayLow !== null && current.dayHigh !== null && (
               <span className="text-xs text-muted">
-                Rentang hari ini {current.dayLow.toLocaleString("id-ID")} – {current.dayHigh.toLocaleString("id-ID")}
+                Rentang hari ini {current.dayLow.toLocaleString("id-ID")} –{" "}
+                {current.dayHigh.toLocaleString("id-ID")}
               </span>
             )}
             <span className="text-xs text-muted">
-              Update {new Date(current.marketTime).toLocaleTimeString("id-ID", { timeZone: "Asia/Jakarta" })} WIB
+              Update {new Date(current.marketTime).toLocaleTimeString("id-ID", { timeZone: "Asia/Jakarta" })}{" "}
+              WIB
             </span>
           </>
         ) : (
@@ -243,8 +253,9 @@ export default function SahamChart({ code, onCode }: { code: string; onCode: (co
 
       <div ref={el} style={{ height: 420 }} />
       <p className="px-4 py-2 text-[11px] text-muted">
-        <span className="text-amber-300">━ EMA 20</span> · <span className="text-indigo-300">━ EMA 50</span> · Data
-        Yahoo Finance, tertunda ±10 menit dari BEI, diperbarui tiap 15 detik saat bursa buka. Waktu dalam WIB.
+        <span className="text-amber-300">━ EMA 20</span> · <span className="text-indigo-300">━ EMA 50</span> ·
+        Data Yahoo Finance, tertunda ±10 menit dari BEI, diperbarui tiap 15 detik saat bursa buka. Waktu dalam
+        WIB.
       </p>
     </section>
   );
