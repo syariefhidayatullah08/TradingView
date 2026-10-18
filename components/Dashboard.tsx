@@ -16,6 +16,7 @@ import NewsPanel from "./NewsPanel";
 import PositionsPanel from "./PositionsPanel";
 import PriceAlerts from "./PriceAlerts";
 import RealtimeCharts from "./RealtimeCharts";
+import SahamPanel from "./SahamPanel";
 import { SantaiToggle } from "./SantaiSettings";
 import ScannerPanel from "./ScannerPanel";
 import SettingsPanel from "./SettingsPanel";
@@ -69,6 +70,7 @@ const TABS = [
   { id: "sinyal", label: "Sinyal Beli/Jual" },
   { id: "posisi", label: "Posisi Saya" },
   { id: "fundamental", label: "Analisa Fundamental" },
+  { id: "saham", label: "Saham Indonesia" },
   { id: "berita", label: "Berita Dunia" },
   { id: "kalender", label: "Kalender Ekonomi" },
   { id: "pengaturan", label: "Pengaturan" },
@@ -211,6 +213,7 @@ export default function Dashboard({ isOwner = false }: { isOwner?: boolean }) {
           </nav>
 
           {tab === "ai" && <AiAnalysisPanel coin={coin} />}
+          {tab === "saham" && <SahamPanel />}
           {tab === "demo" && <DemoPanel coin={coin} onSelect={setCoin} />}
           {tab === "dca" && (
             <>
