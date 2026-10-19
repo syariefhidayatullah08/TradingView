@@ -1,7 +1,7 @@
 import { analyze, atr, bollinger, rsi, type Candle, type Signal } from "./indicators";
 import { outlook, type Outlook } from "./outlook";
 import { planLevels, type PlanLevels } from "./positions";
-import { detectSignals, volumeSplit } from "./signals";
+import { detectSignals, lastMacdCross, volumeSplit } from "./signals";
 import { bullishBreak, bullishDivergence, vwap, zones } from "./structure";
 
 export type Action = "beli" | "tunggu" | "jangan";
@@ -154,13 +154,25 @@ export function decide(
     reasons.push({ text: "Harga sudah terlalu tinggi (overbought), rawan koreksi", tone: -1 });
   }
 
+  // A fresh downward MACD cross above the zero line often marks a top, even while the slower
+  // indicators still vote buy; holding buys there improved backtests on both coins and stocks.
+  const cross = lastMacdCross(candles);
+  const topCross = cross?.type === "down" && cross.aboveZero;
+  if (topCross) {
+    points -= 1;
+    reasons.push({
+      text: `MACD baru memotong ke bawah garis sinyal di atas garis nol ${cross.age === 0 ? "di candle ini" : `${cross.age} candle lalu`}: momentum naik melemah`,
+      tone: -1,
+    });
+  }
+
   const plan = planLevels(candles, price);
   const riskReward = plan ? (plan.target1 - price) / (price - plan.stop) : null;
   const confidence = Math.round(Math.min(Math.abs(points) / MAX_POINTS, 1) * 100);
 
   let action: Action;
   let headline: string;
-  if (reversal && !stretched && !(m && m.tone === -1)) {
+  if (reversal && !stretched && !topCross && !(m && m.tone === -1)) {
     action = "beli";
     headline = "BELI (pembalikan): struktur harga berbalik naik lebih awal dari indikator tren";
   } else if (points <= AVOID_POINTS) {
@@ -178,6 +190,9 @@ export function decide(
       opts.marketName === "IHSG"
         ? "Tunggu: IHSG sedang turun, kebanyakan saham ikut turun"
         : "Tunggu: pasar BTC sedang turun, altcoin biasanya ikut turun";
+  } else if (topCross) {
+    action = "tunggu";
+    headline = "Tunggu: MACD baru cross turun di atas garis nol, rawan koreksi";
   } else if (stretched) {
     action = "tunggu";
     headline = "Tunggu koreksi: tren naik, tetapi harga sudah overbought";

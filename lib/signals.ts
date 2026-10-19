@@ -62,6 +62,21 @@ function macdSeries(closes: number[], fast = 12, slow = 26, signalPeriod = 9) {
   return { line, signal };
 }
 
+export type MacdCross = { type: "up" | "down"; age: number; aboveZero: boolean };
+
+// The latest MACD/signal-line crossover within `lookback` candles, and whether it happened above
+// the zero line. A downward cross above zero after a rise is a classic early sign of a top.
+export function lastMacdCross(candles: Candle[], lookback = 3): MacdCross | null {
+  const { line, signal } = macdSeries(candles.map((c) => c.close));
+  for (let i = candles.length - 1; i >= Math.max(1, candles.length - 1 - lookback); i--) {
+    if ([line[i], line[i - 1], signal[i], signal[i - 1]].some(Number.isNaN)) return null;
+    const up = line[i - 1] <= signal[i - 1] && line[i] > signal[i];
+    const down = line[i - 1] >= signal[i - 1] && line[i] < signal[i];
+    if (up || down) return { type: up ? "up" : "down", age: candles.length - 1 - i, aboveZero: line[i] > 0 };
+  }
+  return null;
+}
+
 // Buy/sell events from two classic rules: MACD crossovers in the direction of the
 // EMA 50 trend, and RSI leaving the oversold/overbought zones. Signals alternate,
 // so a buy is only reported after a sell and vice versa.
