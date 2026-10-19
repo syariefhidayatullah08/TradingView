@@ -40,10 +40,13 @@ export type DecideOptions = {
   // Price structure (break of structure, RSI divergence, VWAP, support/resistance):
   // "votes" adds them to the score, "reversal" also lets a confirmed turn buy before the trend indicators agree.
   structure?: "votes" | "reversal";
+  // Price format for reason texts (default US dollars) and the name of the market used by `market`.
+  money?: (n: number) => string;
+  marketName?: "BTC" | "IHSG";
 };
 const OVERBOUGHT_RSI = 72;
 
-function fmt(n: number): string {
+function usd(n: number): string {
   return `$${n.toLocaleString("en-US", { maximumFractionDigits: n >= 1 ? 2 : 6 })}`;
 }
 
@@ -56,6 +59,7 @@ export function decide(
   higherLabel: string | null,
   opts: DecideOptions = {},
 ): Decision | null {
+  const fmt = opts.money ?? usd;
   const a = analyze(candles, fmt);
   const o = outlook(candles, HORIZON);
   if (!a || !o) return null;
@@ -138,7 +142,8 @@ export function decide(
 
   const m = opts.market;
   if (m) {
-    reasons.push({ text: `Pasar BTC harian ${m.direction.toLowerCase()} (kekuatan ${m.strength}%)`, tone: m.tone });
+    const name = opts.marketName === "IHSG" ? "IHSG" : "Pasar BTC";
+    reasons.push({ text: `${name} harian ${m.direction.toLowerCase()} (kekuatan ${m.strength}%)`, tone: m.tone });
   }
 
   const closes = candles.map((c) => c.close);
@@ -169,7 +174,10 @@ export function decide(
     headline = `Tunggu: naik di timeframe ini, tetapi tren besar (${higherLabel}) masih turun`;
   } else if (m && m.tone === -1) {
     action = "tunggu";
-    headline = "Tunggu: pasar BTC sedang turun, altcoin biasanya ikut turun";
+    headline =
+      opts.marketName === "IHSG"
+        ? "Tunggu: IHSG sedang turun, kebanyakan saham ikut turun"
+        : "Tunggu: pasar BTC sedang turun, altcoin biasanya ikut turun";
   } else if (stretched) {
     action = "tunggu";
     headline = "Tunggu koreksi: tren naik, tetapi harga sudah overbought";

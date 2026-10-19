@@ -9,6 +9,7 @@ import {
   type SahamReport,
   type StockScore,
 } from "./saham";
+import { stockDecision } from "./saham-signals";
 
 const UA = { "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64)" };
 const CACHE_MS = 30 * 60_000;
@@ -109,7 +110,14 @@ function technical(candles: Candle[], index: number[] | null) {
       label: "RSI 14 hari",
       value: r.toFixed(0),
       tone,
-      note: r < 30 ? "Jenuh jual, rawan memantul" : r > 70 ? "Jenuh beli, rawan koreksi" : rising ? "Mulai menguat" : "Netral",
+      note:
+        r < 30
+          ? "Jenuh jual, rawan memantul"
+          : r > 70
+            ? "Jenuh beli, rawan koreksi"
+            : rising
+              ? "Mulai menguat"
+              : "Netral",
     });
   }
   const st = stochastic(candles);
@@ -243,36 +251,88 @@ function technical(candles: Candle[], index: number[] | null) {
   };
 }
 
-function fundamental(s: any): { points: Point[]; score: number | null; target: number | null; analysts: number | null } {
+function fundamental(s: any): {
+  points: Point[];
+  score: number | null;
+  target: number | null;
+  analysts: number | null;
+} {
   if (!s) return { points: [], score: null, target: null, analysts: null };
   const fd = s.financialData ?? {};
   const ks = s.defaultKeyStatistics ?? {};
   const sd = s.summaryDetail ?? {};
   const idr = (fd.financialCurrency ?? "IDR") === "IDR";
   const pts: Point[] = [];
-  const add = (label: string, v: number | null, value: (v: number) => string, tone: (v: number) => Signal, note: (v: number) => string) => {
+  const add = (
+    label: string,
+    v: number | null,
+    value: (v: number) => string,
+    tone: (v: number) => Signal,
+    note: (v: number) => string,
+  ) => {
     if (v !== null) pts.push({ label, value: value(v), tone: tone(v), note: note(v) });
   };
   const p100 = (v: number) => `${(v * 100).toFixed(1)}%`;
 
-  add("PER (harga/laba)", raw(sd.trailingPE), (v) => `${v.toFixed(1)}×`, (v) => (v < 12 ? 1 : v > 25 ? -1 : 0),
-    (v) => (v < 12 ? "Murah dibanding labanya" : v > 25 ? "Mahal dibanding labanya" : "Wajar"));
+  add(
+    "PER (harga/laba)",
+    raw(sd.trailingPE),
+    (v) => `${v.toFixed(1)}×`,
+    (v) => (v < 12 ? 1 : v > 25 ? -1 : 0),
+    (v) => (v < 12 ? "Murah dibanding labanya" : v > 25 ? "Mahal dibanding labanya" : "Wajar"),
+  );
   // Book value is reported in USD for some miners, which makes Yahoo's PBV meaningless.
   const pbv = raw(ks.priceToBook);
-  add("PBV (harga/nilai buku)", idr && pbv !== null && pbv < 50 ? pbv : null, (v) => `${v.toFixed(2)}×`,
-    (v) => (v < 1.5 ? 1 : v > 4 ? -1 : 0), (v) => (v < 1 ? "Di bawah nilai bukunya" : v > 4 ? "Mahal dibanding asetnya" : "Wajar"));
-  add("ROE (laba/modal)", raw(fd.returnOnEquity), p100, (v) => (v > 0.15 ? 1 : v < 0.08 ? -1 : 0),
-    (v) => (v > 0.15 ? "Sangat efisien menghasilkan laba" : v < 0.08 ? "Laba kecil dibanding modal" : "Cukup"));
-  add("Utang/ekuitas", raw(fd.debtToEquity), (v) => `${v.toFixed(0)}%`, (v) => (v < 60 ? 1 : v > 150 ? -1 : 0),
-    (v) => (v < 60 ? "Utang rendah" : v > 150 ? "Utang tinggi" : "Utang sedang"));
-  add("Pertumbuhan laba", raw(fd.earningsGrowth), p100, (v) => (v > 0.1 ? 1 : v < -0.1 ? -1 : 0),
-    () => "Dibanding periode yang sama tahun lalu");
-  add("Pertumbuhan pendapatan", raw(fd.revenueGrowth), p100, (v) => (v > 0.05 ? 1 : v < -0.05 ? -1 : 0),
-    () => "Dibanding periode yang sama tahun lalu");
-  add("Margin laba bersih", raw(fd.profitMargins), p100, (v) => (v > 0.15 ? 1 : v < 0.03 ? -1 : 0),
-    (v) => (v > 0.15 ? "Margin tebal" : v < 0.03 ? "Margin tipis" : "Margin sedang"));
-  add("Dividen", raw(sd.dividendYield), p100, (v) => (v > 0.05 ? 1 : 0),
-    (v) => (v > 0.05 ? "Dividen tinggi (cek apakah berkelanjutan)" : "Dividen biasa"));
+  add(
+    "PBV (harga/nilai buku)",
+    idr && pbv !== null && pbv < 50 ? pbv : null,
+    (v) => `${v.toFixed(2)}×`,
+    (v) => (v < 1.5 ? 1 : v > 4 ? -1 : 0),
+    (v) => (v < 1 ? "Di bawah nilai bukunya" : v > 4 ? "Mahal dibanding asetnya" : "Wajar"),
+  );
+  add(
+    "ROE (laba/modal)",
+    raw(fd.returnOnEquity),
+    p100,
+    (v) => (v > 0.15 ? 1 : v < 0.08 ? -1 : 0),
+    (v) =>
+      v > 0.15 ? "Sangat efisien menghasilkan laba" : v < 0.08 ? "Laba kecil dibanding modal" : "Cukup",
+  );
+  add(
+    "Utang/ekuitas",
+    raw(fd.debtToEquity),
+    (v) => `${v.toFixed(0)}%`,
+    (v) => (v < 60 ? 1 : v > 150 ? -1 : 0),
+    (v) => (v < 60 ? "Utang rendah" : v > 150 ? "Utang tinggi" : "Utang sedang"),
+  );
+  add(
+    "Pertumbuhan laba",
+    raw(fd.earningsGrowth),
+    p100,
+    (v) => (v > 0.1 ? 1 : v < -0.1 ? -1 : 0),
+    () => "Dibanding periode yang sama tahun lalu",
+  );
+  add(
+    "Pertumbuhan pendapatan",
+    raw(fd.revenueGrowth),
+    p100,
+    (v) => (v > 0.05 ? 1 : v < -0.05 ? -1 : 0),
+    () => "Dibanding periode yang sama tahun lalu",
+  );
+  add(
+    "Margin laba bersih",
+    raw(fd.profitMargins),
+    p100,
+    (v) => (v > 0.15 ? 1 : v < 0.03 ? -1 : 0),
+    (v) => (v > 0.15 ? "Margin tebal" : v < 0.03 ? "Margin tipis" : "Margin sedang"),
+  );
+  add(
+    "Dividen",
+    raw(sd.dividendYield),
+    p100,
+    (v) => (v > 0.05 ? 1 : 0),
+    (v) => (v > 0.05 ? "Dividen tinggi (cek apakah berkelanjutan)" : "Dividen biasa"),
+  );
   const price = raw(fd.currentPrice);
   const target = raw(fd.targetMeanPrice);
   const analysts = raw(fd.numberOfAnalystOpinions);
@@ -311,14 +371,27 @@ function marketContext(candles: Candle[]): MarketContext | null {
   const change5d = ret(closes, 5) ?? 0;
   const drawdown = pct(price, Math.max(...closes.slice(-250)));
   const regime: MarketContext["regime"] =
-    (e200 !== null && price < e200) || change5d < -7 ? "turun" : e50 !== null && e200 !== null && price > e50 && e50 > e200 ? "naik" : "netral";
+    (e200 !== null && price < e200) || change5d < -7
+      ? "turun"
+      : e50 !== null && e200 !== null && price > e50 && e50 > e200
+        ? "naik"
+        : "netral";
   const note =
     regime === "turun"
       ? "IHSG sedang turun tajam / di bawah tren besarnya. Beli bertahap (separuh dulu), simpan kas, dan disiplin stop loss."
       : regime === "naik"
         ? "IHSG dalam tren naik. Kondisi mendukung untuk membeli sesuai rencana."
         : "IHSG bergerak datar. Pilih saham yang lebih kuat dari indeks.";
-  return { price, changePct: pct(price, closes[closes.length - 2]), change5d, ema50: e50, ema200: e200, drawdown, regime, note };
+  return {
+    price,
+    changePct: pct(price, closes[closes.length - 2]),
+    change5d,
+    ema50: e50,
+    ema200: e200,
+    drawdown,
+    regime,
+    note,
+  };
 }
 
 async function build(): Promise<SahamReport> {
@@ -356,6 +429,7 @@ async function build(): Promise<SahamReport> {
       scores: { pendek: combine("pendek"), menengah: combine("menengah"), panjang: combine("panjang") },
       techPoints: t.points,
       fundPoints: f.points,
+      decision: stockDecision(candles, ihsg.length ? ihsg : null),
     };
   });
   return {
@@ -386,6 +460,9 @@ const CHART_TF: Record<string, { interval: string; range: string }> = {
   "1h": { interval: "60m", range: "3mo" },
   "1d": { interval: "1d", range: "2y" },
   "1wk": { interval: "1wk", range: "10y" },
+  // Longer histories for the strategy test.
+  "1h-2y": { interval: "60m", range: "730d" },
+  "1d-5y": { interval: "1d", range: "5y" },
 };
 
 export const isChartTimeframe = (tf: string) => tf in CHART_TF;

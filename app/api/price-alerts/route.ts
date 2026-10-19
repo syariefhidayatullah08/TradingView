@@ -1,7 +1,8 @@
 import { clerkClient } from "@clerk/nextjs/server";
 import { getAccess } from "@/lib/access";
 import { livePrice } from "@/lib/binance-server";
-import { MAX_ALERTS, packAlerts, unpackAlerts, validAlertSymbol, type PriceAlert } from "@/lib/price-alerts";
+import { isStockSymbol, MAX_ALERTS, packAlerts, unpackAlerts, validAlertSymbol, type PriceAlert } from "@/lib/price-alerts";
+import { getSahamChart } from "@/lib/saham-server";
 
 async function requireUser(): Promise<{ userId: string } | Response> {
   const access = await getAccess();
@@ -36,13 +37,17 @@ export async function POST(request: Request) {
   const symbol = body?.symbol;
   const price = Number(body?.price);
   if (!validAlertSymbol(symbol) || !(price > 0) || !Number.isFinite(price)) {
-    return Response.json({ error: "Koin atau harga tidak valid" }, { status: 400 });
+    return Response.json({ error: "Koin/saham atau harga tidak valid" }, { status: 400 });
   }
   const list = await load(user.userId);
   if (list.length >= MAX_ALERTS) {
     return Response.json({ error: `Maksimal ${MAX_ALERTS} alarm; hapus yang lama dulu` }, { status: 400 });
   }
-  const now = await livePrice(symbol);
+  const now = isStockSymbol(symbol)
+    ? await getSahamChart(symbol, "1d")
+        .then((c) => c.price)
+        .catch(() => null)
+    : await livePrice(symbol);
   if (now === null) return Response.json({ error: "Harga live tidak tersedia, coba lagi" }, { status: 502 });
   if (Math.abs(price - now) / now < 0.001) {
     return Response.json({ error: "Harga alarm terlalu dekat dengan harga sekarang" }, { status: 400 });

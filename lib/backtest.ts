@@ -22,6 +22,11 @@ export type BacktestOptions = {
   trailing: boolean;
   minConfidence: number;
   structure?: "votes" | "reversal";
+  // Fees per side in percent when they differ from Tokocrypto's (IDX brokers charge more to sell).
+  fees?: { buy: number; sell: number };
+  // Options passed through to the decision for non-crypto markets.
+  money?: (n: number) => string;
+  marketName?: "BTC" | "IHSG";
 };
 
 export type BacktestInput = {
@@ -30,7 +35,7 @@ export type BacktestInput = {
   higher: Candle[] | null;
   higherMs: number;
   higherLabel: string | null;
-  // BTC daily candles for the market filter.
+  // Daily candles of the market (BTC, or IHSG for stocks) for the market filter.
   btcDaily: Candle[] | null;
 };
 
@@ -75,6 +80,13 @@ export async function runBacktest(
   onProgress?: (done: number) => void,
 ): Promise<BacktestResult> {
   const { candles, intervalMs } = input;
+  const fees = opts.fees;
+  const net = (entry: number, exit: number) =>
+    fees ? ((exit * (1 - fees.sell / 100)) / (entry * (1 + fees.buy / 100)) - 1) * 100 : netPct(entry, exit);
+  const netTarget = (entry: number, pct: number) =>
+    fees
+      ? (entry * (1 + fees.buy / 100) * (1 + pct / 100)) / (1 - fees.sell / 100)
+      : netTargetPrice(entry, pct);
   const trades: BacktestTrade[] = [];
   let hi = -1;
   let mi = -1;
@@ -92,7 +104,7 @@ export async function runBacktest(
   let maxDrawdown = 0;
 
   const close = (time: number, price: number, reason: ExitReason) => {
-    const pct = netPct(pos!.entryPrice, price);
+    const pct = net(pos!.entryPrice, price);
     trades.push({
       entryTime: pos!.entryTime,
       entryPrice: pos!.entryPrice,
@@ -124,7 +136,7 @@ export async function runBacktest(
         if (c.close <= floor) close(closeTime, floor, "trail");
       }
       if (pos) {
-        const value = equity * (1 + netPct(pos.entryPrice, c.close) / 100);
+        const value = equity * (1 + net(pos.entryPrice, c.close) / 100);
         peakEquity = Math.max(peakEquity, value);
         maxDrawdown = Math.max(maxDrawdown, (1 - value / peakEquity) * 100);
       }
@@ -145,7 +157,13 @@ export async function runBacktest(
         candles.slice(i - BACKTEST_WINDOW + 1, i + 1),
         higher,
         input.higherLabel,
-        { sensitive: opts.sensitive, market, structure: opts.structure },
+        {
+          sensitive: opts.sensitive,
+          market,
+          structure: opts.structure,
+          money: opts.money,
+          marketName: opts.marketName,
+        },
       );
       if (d && d.action === "beli" && d.confidence >= opts.minConfidence && d.plan) {
         pos = {
@@ -153,7 +171,7 @@ export async function runBacktest(
           entryPrice: d.price,
           confidence: d.confidence,
           stop: opts.exit === "normal" ? d.plan.stop : null,
-          target: opts.exit === "normal" ? d.plan.target1 : netTargetPrice(d.price, opts.targetPct),
+          target: opts.exit === "normal" ? d.plan.target1 : netTarget(d.price, opts.targetPct),
           trail: d.plan.atr * TRAIL_ATR,
           peak: null,
         };
@@ -172,7 +190,7 @@ export async function runBacktest(
   let open: BacktestTrade | null = null;
   let total = equity;
   if (pos) {
-    const pct = netPct(pos.entryPrice, last.close);
+    const pct = net(pos.entryPrice, last.close);
     open = {
       entryTime: pos.entryTime,
       entryPrice: pos.entryPrice,
@@ -196,7 +214,7 @@ export async function runBacktest(
     totalPct: (total - 1) * 100,
     avgHoldHours: holds.length ? holds.reduce((a, b) => a + b, 0) / holds.length : null,
     maxDrawdownPct: maxDrawdown,
-    buyHoldPct: netPct(first.close, last.close),
+    buyHoldPct: net(first.close, last.close),
     from: first.time,
     to: last.time + intervalMs,
   };

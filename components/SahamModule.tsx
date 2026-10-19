@@ -17,7 +17,11 @@ import {
 } from "@/lib/saham";
 import EconomicCalendar from "./EconomicCalendar";
 import NewsPanel from "./NewsPanel";
+import { StockPriceAlerts } from "./PriceAlerts";
+import SahamBacktest from "./SahamBacktest";
 import SahamChart from "./SahamChart";
+import SahamDemoPanel from "./SahamDemoPanel";
+import SahamSignals from "./SahamSignals";
 import SahamTechnical from "./SahamTechnical";
 import SettingsPanel from "./SettingsPanel";
 
@@ -32,8 +36,12 @@ const regimeTone: Record<keyof typeof regimeText, Signal> = { naik: 1, netral: 0
 
 const TABS = [
   { id: "rencana", label: "Rencana Modal" },
+  { id: "sinyal", label: "Sinyal Beli/Jual" },
   { id: "peringkat", label: "Peringkat Saham" },
   { id: "teknikal", label: "Analisa Teknikal" },
+  { id: "uji", label: "Uji Strategi" },
+  { id: "demo", label: "Akun Demo" },
+  { id: "alarm", label: "Alarm Harga" },
   { id: "berita", label: "Berita" },
   { id: "kalender", label: "Kalender Ekonomi" },
   { id: "pengaturan", label: "Pengaturan" },
@@ -193,7 +201,7 @@ export default function SahamModule({ isOwner }: { isOwner: boolean }) {
             ))}
           </nav>
 
-          {(tab === "rencana" || tab === "peringkat") && (error || !data) && (
+          {(tab === "rencana" || tab === "peringkat" || tab === "sinyal") && (error || !data) && (
             <section className="panel">
               {error ? (
                 <p className="p-4 text-sm text-down">Data saham gagal dimuat ({error}).</p>
@@ -450,7 +458,20 @@ export default function SahamModule({ isOwner }: { isOwner: boolean }) {
               </div>
             </section>
           )}
+          {tab === "sinyal" && data && <SahamSignals stocks={data.stocks} onChart={showChart} />}
           {tab === "teknikal" && <SahamTechnical code={chartCode} />}
+          {tab === "uji" && <SahamBacktest code={chartCode} onChart={showChart} />}
+          {tab === "demo" && <SahamDemoPanel code={chartCode} onCode={showChart} />}
+          {tab === "alarm" &&
+            (chartCode === "IHSG" ? (
+              <section className="panel">
+                <p className="p-4 text-sm text-muted">
+                  Pilih saham di chart atau daftar samping untuk memasang alarm harganya.
+                </p>
+              </section>
+            ) : (
+              <StockPriceAlerts code={chartCode} />
+            ))}
           {tab === "berita" && <NewsPanel />}
           {tab === "kalender" && <EconomicCalendar />}
           {tab === "pengaturan" && <SettingsPanel isOwner={isOwner} />}

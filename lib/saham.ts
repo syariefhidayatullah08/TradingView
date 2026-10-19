@@ -1,3 +1,4 @@
+import type { Decision } from "./decision";
 import type { Candle, Signal } from "./indicators";
 
 // Liquid IDX stocks (mostly LQ45 / IDX30 members) that a small account can trade daily.
@@ -70,6 +71,8 @@ export type StockScore = {
   scores: Record<Horizon, number>; // combined -1..1
   techPoints: Record<Horizon, Point[]>;
   fundPoints: Point[];
+  // The crypto-style buy decision on daily candles (see saham-signals).
+  decision: Decision | null;
 };
 
 export type MarketContext = {
@@ -126,8 +129,7 @@ export function verdict(score: number): { text: string; tone: Signal } {
   return { text: "HINDARI", tone: -1 };
 }
 
-export const rupiah = (n: number) =>
-  `Rp${Math.round(n).toLocaleString("id-ID")}`;
+export const rupiah = (n: number) => `Rp${Math.round(n).toLocaleString("id-ID")}`;
 
 export type Pick = {
   stock: StockScore;
@@ -180,7 +182,7 @@ export function buildPlan(
       if (chosen.length >= count[h]) break;
       // Spread across sectors: one per sector within a horizon, two in the whole plan.
       if ((sectors.get(s.sector) ?? 0) >= 2 || chosen.some((c) => c.sector === s.sector)) continue;
-      if (s.price * LOT * (1 + BUY_FEE) > budgets[h] / Math.max(1, count[h]) * 1.6) continue; // lot too expensive
+      if (s.price * LOT * (1 + BUY_FEE) > (budgets[h] / Math.max(1, count[h])) * 1.6) continue; // lot too expensive
       chosen.push(s);
       used.add(s.code);
       sectors.set(s.sector, (sectors.get(s.sector) ?? 0) + 1);

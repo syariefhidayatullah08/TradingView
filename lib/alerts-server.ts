@@ -5,7 +5,9 @@ import type { Action } from "./decision";
 import type { Candle } from "./indicators";
 import { evaluate, type Verdict } from "./positions";
 import { expand, sanitizePositions } from "./positions-store";
-import { ALERT_INTERVAL, reached, unpackAlerts } from "./price-alerts";
+import { ALERT_INTERVAL, isStockSymbol, reached, unpackAlerts } from "./price-alerts";
+import { getSahamChart } from "./saham-server";
+import { idr } from "./saham-signals";
 import { applyLock, weeklyLock } from "./risk";
 import { partUsdt, SANTAI_COINS, sanitizeSantai, tradeTimeframe, type SantaiSettings } from "./santai";
 import { COINS, formatPrice, higherTimeframe } from "./symbols";
@@ -200,13 +202,24 @@ export async function alertsFor(
   // Price alarms fire once, then are removed by the caller.
   const fired: string[] = [];
   for (const a of unpackAlerts(meta.priceAlerts)) {
-    const c = await candles(a.symbol, ALERT_INTERVAL);
+    const stock = isStockSymbol(a.symbol);
+    const c = stock
+      ? await getSahamChart(a.symbol, "15m")
+          .then((x) => x.candles)
+          .catch(() => null)
+      : await candles(a.symbol, ALERT_INTERVAL);
     if (!c || c.length === 0 || !reached(a, c)) continue;
     fired.push(a.id);
-    const base = COINS.find((x) => x.symbol === a.symbol)?.base ?? a.symbol;
+    const base = stock
+      ? `saham ${a.symbol.replace(/\.JK$/, "")}`
+      : (COINS.find((x) => x.symbol === a.symbol)?.base ?? a.symbol);
+    const money = (n: number) => (stock ? idr(n) : formatPrice(n));
+    const check = stock
+      ? " Cek tab Sinyal Beli/Jual Saham sebelum membeli."
+      : " Cek saran Mulai Trading sebelum membeli.";
     messages.push(
-      `🔔 <b>Alarm ${base}: harga ${a.dir === 1 ? "naik ke" : "turun ke"} ${formatPrice(a.price)}</b>
-Harga sekarang ${formatPrice(c[c.length - 1].close)}.${a.dir === -1 ? " Cek saran Mulai Trading sebelum membeli." : ""}`,
+      `🔔 <b>Alarm ${base}: harga ${a.dir === 1 ? "naik ke" : "turun ke"} ${money(a.price)}</b>
+Harga sekarang ${money(c[c.length - 1].close)}.${a.dir === -1 ? check : ""}`,
     );
   }
 

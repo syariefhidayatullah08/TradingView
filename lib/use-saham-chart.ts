@@ -3,7 +3,7 @@
 import { useEffect, useState } from "react";
 import type { SahamChart } from "./saham";
 
-export type SahamTf = "1m" | "5m" | "15m" | "1h" | "1d" | "1wk";
+export type SahamTf = "1m" | "5m" | "15m" | "1h" | "1d" | "1wk" | "1h-2y" | "1d-5y";
 
 // IDX regular sessions in WIB: Mon–Thu 09:00–12:00 & 13:30–16:00, Fri 09:00–11:30 & 14:00–16:00.
 export function idxSession(now = new Date()): { text: string; open: boolean } {

@@ -1,7 +1,7 @@
 import type { Candle } from "./indicators";
 import { COINS } from "./symbols";
 
-// Price alarms: "tell me when BTC falls to $78,000". Checked by the scheduled server scan and
+// Price alarms: "tell me when BTC falls to $78,000" or "when BBRI falls to Rp2.500". Checked by the scheduled server scan and
 // sent to Telegram, then removed. Stored compactly in the user's Clerk private metadata.
 
 export const MAX_ALERTS = 10;
@@ -21,8 +21,13 @@ type Stored = [string, string, number, 1 | -1, number];
 
 const num = (v: unknown) => (typeof v === "number" && Number.isFinite(v) ? v : null);
 
+// IDX stocks use their Yahoo symbol, e.g. "BBCA.JK".
+export function isStockSymbol(s: string): boolean {
+  return /^[A-Z]{4}.JK$/.test(s);
+}
+
 export function validAlertSymbol(s: unknown): s is string {
-  return typeof s === "string" && COINS.some((c) => c.symbol === s);
+  return typeof s === "string" && (COINS.some((c) => c.symbol === s) || isStockSymbol(s));
 }
 
 export function unpackAlerts(raw: unknown): PriceAlert[] {
